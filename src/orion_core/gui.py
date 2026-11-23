@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import queue
+import subprocess
 import threading
 import tkinter as tk
 from datetime import datetime
@@ -16,6 +17,7 @@ from typing import Any
 
 from . import __version__
 from .report import collect_diagnostics_report
+from .gpu_probe import ProbeReportError, validate_probe_report
 
 
 class OrionDashboard:
@@ -27,6 +29,8 @@ class OrionDashboard:
         self.events: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.worker: threading.Thread | None = None
         self.report: dict[str, Any] | None = None
+        self.gpu_report: dict[str, Any] | None = None
+        self._scan_success = False
         self.log_lines: list[str] = []
         self._configure_style()
         self._build_layout()
@@ -83,6 +87,8 @@ class OrionDashboard:
         self.scan_button.pack(side="left")
         ttk.Button(actions, text="Сохранить лог", command=self.save_log).pack(side="left", padx=8)
         ttk.Button(actions, text="Экспорт отчёта JSON", command=self.export_report).pack(side="left")
+        self.gpu_button = ttk.Button(actions, text="▶  Запустить D3D12-тест", command=self.choose_gpu_probe)
+        self.gpu_button.pack(side="left", padx=8)
         ttk.Button(actions, text="Очистить консоль", command=self.clear_console).pack(side="right")
 
         split = ttk.Panedwindow(outer, orient="vertical")
@@ -125,6 +131,8 @@ class OrionDashboard:
         if self.worker and self.worker.is_alive():
             return
         self.scan_button.configure(state="disabled")
+        self._scan_success = False
+        self.report = None
         self.status.set("Выполняется диагностика…")
         self.overview_text.set("Сбор системной информации. Смотрите подробные этапы в консоли.")
         self._log("INFO", "Запрошен запуск read-only диагностики.")
@@ -145,6 +153,7 @@ class OrionDashboard:
                 self._emit("WARNING", "Этап 2/3: Windows-инвентаризация недоступна на этой платформе.")
             self._emit("INFO", "Этап 3/3: формирование итогового диагностического отчёта.")
             self.events.put(("report", report))
+            self._scan_success = True
             self._emit("SUCCESS", "Этап 3/3 завершён: отчёт сформирован.")
             self.events.put(("done", None))
         except Exception as exc:  # surfaced in the live console for diagnosis
@@ -162,7 +171,21 @@ class OrionDashboard:
                     self._update_dashboard(payload)
                 elif kind == "done":
                     self.scan_button.configure(state="normal")
-                    self.status.set("Готово" if self.report else "Завершено с ошибкой")
+                    self.status.set("Готово" if self._scan_success else "Завершено с ошибкой")
+                elif kind == "gpu_report":
+                    self.gpu_report = payload
+                    adapters = payload.get("adapters", [])
+                    hardware = [item for item in adapters if not item.get("software") and item.get("d3d12_device")]
+                    if hardware:
+                        self.card_values["gpu"].set(hardware[0]["name"])
+                    self.overview_text.set(
+                        "Нативный D3D12-отчёт получен. Это проверка возможностей Windows/D3D12 и smoke-тестов; "
+                        "совместимость Xbox-игр не устанавливается."
+                    )
+                elif kind == "gpu_done":
+                    self.scan_button.configure(state="normal")
+                    self.gpu_button.configure(state="normal")
+                    self.status.set("D3D12-тест завершён" if payload else "D3D12-тест завершился с ошибкой")
         except queue.Empty:
             pass
         self.root.after(100, self._drain_events)
@@ -186,6 +209,57 @@ class OrionDashboard:
             "Нативный D3D12 GPU-тест пока запускается отдельно и здесь не имитируется."
         )
         self._log("SUCCESS", f"Система: {os_info['system']} {os_info['release']}; CPU: {cpu}; GPU: {self.card_values['gpu'].get()}.")
+
+
+    def choose_gpu_probe(self) -> None:
+        if self.worker and self.worker.is_alive():
+            messagebox.showinfo("Orion-Core", "Дождитесь завершения текущей операции.")
+            return
+        path = filedialog.askopenfilename(
+            title="Выберите собранный native D3D12 probe",
+            filetypes=[("Windows executable", "*.exe"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".exe"):
+            messagebox.showerror("Orion-Core", "Выберите исполняемый файл .exe.")
+            return
+        self.gpu_button.configure(state="disabled")
+        self.scan_button.configure(state="disabled")
+        self.status.set("Выполняется нативный D3D12-тест…")
+        self._log("WARNING", "D3D12 probe выполняет реальные read-only GPU-команды; сохраните работу перед запуском.")
+        self._log("INFO", f"Запуск выбранного пользователем файла: {path}")
+        self.worker = threading.Thread(target=self._gpu_probe_worker, args=(path,), daemon=True)
+        self.worker.start()
+
+    def _gpu_probe_worker(self, executable: str) -> None:
+        try:
+            self._emit("INFO", "D3D12: запуск процесса с аргументом --json; ожидание аппаратного отчёта.")
+            completed = subprocess.run(
+                [executable, "--json"], capture_output=True, text=True,
+                encoding="utf-8", errors="replace", timeout=180, check=False, shell=False,
+            )
+            if completed.stderr.strip():
+                for line in completed.stderr.strip().splitlines():
+                    self._emit("WARNING", f"D3D12 stderr: {line[:500]}")
+            if completed.returncode not in (0, 3):
+                raise RuntimeError(f"probe завершился с кодом {completed.returncode}")
+            try:
+                raw = json.loads(completed.stdout)
+            except json.JSONDecodeError as exc:
+                raise ProbeReportError("probe не вернул корректный JSON в stdout") from exc
+            report = validate_probe_report(raw)
+            self.events.put(("gpu_report", report))
+            self._emit("SUCCESS", f"D3D12: отчёт получен; аппаратных D3D12-адаптеров: {report.get('hardware_d3d12_adapters', 0)}.")
+            if completed.returncode == 3:
+                self._emit("WARNING", "D3D12: совместимый аппаратный адаптер не создан (код 3).")
+            self.events.put(("gpu_done", True))
+        except subprocess.TimeoutExpired:
+            self._emit("ERROR", "D3D12: превышено время ожидания 180 секунд.")
+            self.events.put(("gpu_done", False))
+        except Exception as exc:
+            self._emit("ERROR", f"D3D12-тест не завершён: {type(exc).__name__}: {exc}")
+            self.events.put(("gpu_done", False))
 
     def clear_console(self) -> None:
         self.console.configure(state="normal")
