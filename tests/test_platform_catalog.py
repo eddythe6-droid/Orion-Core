@@ -26,3 +26,17 @@ def test_pc_graphics_contracts_are_not_claimed_as_xbox_facts():
         assert records[claim_id].platform == "windows_pc"
         assert compare_support(records[claim_id], "windows_pc") == "documented"
         assert compare_support(records[claim_id], "xbox") == "not_documented_for_target"
+
+
+def test_catalog_tracks_shared_input_save_and_file_apis():
+    records = {item.claim_id: item for item in load_platform_inventory().records}
+    for claim_id, subsystem in (
+        ("GDK-INPUT-001", "input"),
+        ("GDK-SAVE-001", "save_data"),
+        ("GDK-FILE-001", "file_io"),
+    ):
+        record = records[claim_id]
+        assert record.subsystem == subsystem
+        assert record.platform == "both"
+        assert compare_support(record, "windows_pc") == "documented"
+        assert compare_support(record, "xbox") == "documented"
