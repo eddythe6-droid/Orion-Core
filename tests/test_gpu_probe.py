@@ -95,3 +95,27 @@ def test_compare_gpu_adapters_does_not_guess_missing_boolean_support():
     report = compare_gpu_adapters({"name": "A"}, {"name": "B"})
     wave = next(item for item in report["results"] if item["capability"] == "wave_ops")
     assert wave["status"] == "unknown"
+
+
+
+def test_format_query_records_are_validated_and_preserved():
+    report = sample_report()
+    report["adapters"][0]["formats"] = [{
+        "format": "BC7_UNORM", "query_available": True,
+        "support1": 123, "support2": 0,
+    }]
+    summary = summarize_probe_report(report)
+    assert summary["adapters"][0]["formats"][0]["format"] == "BC7_UNORM"
+
+    report["adapters"][0]["formats"][0]["support1"] = -1
+    with pytest.raises(ProbeReportError, match="support1"):
+        validate_probe_report(report)
+
+
+def test_unavailable_format_query_keeps_null_masks():
+    report = sample_report()
+    report["adapters"][0]["formats"] = [{
+        "format": "BC7_UNORM", "query_available": False,
+        "support1": None, "support2": None,
+    }]
+    assert validate_probe_report(report)["adapters"][0]["formats"][0]["support1"] is None
