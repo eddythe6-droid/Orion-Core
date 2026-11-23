@@ -15,6 +15,8 @@ class ManagedResource:
     resource_id: str
     size_bytes: int
     last_use: dict[str, FencePoint] = field(default_factory=dict)
+    last_writer: FencePoint | None = None
+    last_readers: dict[str, FencePoint] = field(default_factory=dict)
     retired: bool = False
 
 
@@ -63,20 +65,35 @@ class GPUResourceManager:
         before = self.states.state_of(resource_id)
         return self.states.transition(resource_id, before, after)
 
-    def submit_use(self, resource_id: str, queue_name: str, *, wait_for: tuple[str, ...] = ()) -> FencePoint:
+    def submit_use(self, resource_id: str, queue_name: str, *, access: str = "read", wait_for: tuple[str, ...] = ()) -> FencePoint:
         # Validate the queue argument before resource readiness to keep API errors deterministic.
         self.queues.get(queue_name)
         resource = self._active(resource_id)
         self._require_resident(resource_id)
         if queue_name == "copy":
             raise ValueError("copy work must use submit_next_upload")
+        if access not in ("read", "write"):
+            raise ValueError("access must be read or write")
+        dependencies: dict[str, FencePoint] = {}
+        if resource.last_writer is not None:
+            dependencies[resource.last_writer.queue] = resource.last_writer
+        if access == "write":
+            dependencies.update(resource.last_readers)
         for producer_queue in wait_for:
             producer = resource.last_use.get(producer_queue)
             if producer is None:
                 raise ValueError(f"resource has no submitted use on producer queue: {producer_queue}")
-            self.synchronizer.wait(queue_name, producer)
+            dependencies[producer_queue] = producer
+        for producer_queue, producer in dependencies.items():
+            if producer_queue != queue_name:
+                self.synchronizer.wait(queue_name, producer)
         point = self.synchronizer.submit(queue_name)
         resource.last_use[queue_name] = point
+        if access == "write":
+            resource.last_writer = point
+            resource.last_readers.clear()
+        else:
+            resource.last_readers[queue_name] = point
         self.streaming.touch(resource_id)
         return point
 
@@ -120,6 +137,8 @@ class GPUResourceManager:
                     "last_use": {
                         name: point.value for name, point in sorted(value.last_use.items())
                     },
+                    "last_writer": ({"queue": value.last_writer.queue, "fence_value": value.last_writer.value} if value.last_writer else None),
+                    "last_readers": {name: point.value for name, point in sorted(value.last_readers.items())},
                     "retired": value.retired,
                     "stream_status": self.streaming.streaming.resources[key].status.value,
                 }
