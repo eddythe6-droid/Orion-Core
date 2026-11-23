@@ -546,7 +546,13 @@ int main(int argc, char** argv) {
              << ",\"direct_queue_fence_test\":" << (queueFenceTest ? "true" : "false")
              << ",\"queue_test_note\":\"" << json_escape(queueError) << "\""
              << ",\"resource_copy_smoke_test\":" << (resourceSmoke.success ? "true" : "false")
-             << ",\"resource_copy_smoke_note\":\"" << json_escape(resourceSmoke.note) << "\""\n             << ",\"root_signature_smoke_test\":" << (bindingSmoke.rootSignatureCreated ? "true" : "false")\n             << ",\"resource_descriptor_heap_smoke_test\":" << (bindingSmoke.resourceHeapCreated ? "true" : "false")\n             << ",\"sampler_descriptor_heap_smoke_test\":" << (bindingSmoke.samplerHeapCreated ? "true" : "false")\n             << ",\"resource_descriptor_increment\":" << bindingSmoke.resourceDescriptorIncrement\n             << ",\"sampler_descriptor_increment\":" << bindingSmoke.samplerDescriptorIncrement\n             << ",\"binding_smoke_note\":\"" << json_escape(bindingSmoke.note) << "\"}";
+             << ",\"resource_copy_smoke_note\":\"" << json_escape(resourceSmoke.note) << "\""
+             << ",\"root_signature_smoke_test\":" << (bindingSmoke.rootSignatureCreated ? "true" : "false")
+             << ",\"resource_descriptor_heap_smoke_test\":" << (bindingSmoke.resourceHeapCreated ? "true" : "false")
+             << ",\"sampler_descriptor_heap_smoke_test\":" << (bindingSmoke.samplerHeapCreated ? "true" : "false")
+             << ",\"resource_descriptor_increment\":" << bindingSmoke.resourceDescriptorIncrement
+             << ",\"sampler_descriptor_increment\":" << bindingSmoke.samplerDescriptorIncrement
+             << ",\"binding_smoke_note\":\"" << json_escape(bindingSmoke.note) << "\"}";
         adapterReports.push_back(item.str());
     }
 
