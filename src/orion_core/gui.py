@@ -94,9 +94,20 @@ class OrionDashboard:
         split = ttk.Panedwindow(outer, orient="vertical")
         split.pack(fill="both", expand=True)
         overview = ttk.Frame(split, style="Card.TFrame", padding=12)
-        ttk.Label(overview, text="СОСТОЯНИЕ ИССЛЕДОВАНИЯ", style="CardTitle.TLabel").pack(anchor="w")
         self.overview_text = tk.StringVar(value="Запустите диагностику, чтобы получить сведения о системе.")
-        ttk.Label(overview, textvariable=self.overview_text, background="#192535", wraplength=1000, justify="left").pack(anchor="w", pady=(8, 0))
+        self.detail_notebook = ttk.Notebook(overview)
+        self.detail_notebook.pack(fill="both", expand=True)
+        self.detail_views = {}
+        for tab_name in ("Обзор", "CPU и память", "GPU / D3D12", "Совместимость"):
+            tab = ttk.Frame(self.detail_notebook, padding=10)
+            text_view = tk.Text(tab, bg="#192535", fg="#e7eef7", insertbackground="white", relief="flat", wrap="word", font=("Segoe UI", 10), state="disabled")
+            text_view.pack(fill="both", expand=True)
+            self.detail_notebook.add(tab, text=tab_name)
+            self.detail_views[tab_name] = text_view
+        self._set_detail("Обзор", "Запустите диагностику, чтобы получить сведения о системе.")
+        self._set_detail("CPU и память", "Данные появятся после системной диагностики.")
+        self._set_detail("GPU / D3D12", "Запустите D3D12 probe для подробного отчёта.")
+        self._set_detail("Совместимость", "Каталог содержит документированные контракты платформ, а не оценку конкретной игры.")
         console = ttk.Frame(split, style="Card.TFrame", padding=10)
         console_header = ttk.Frame(console, style="Card.TFrame")
         console_header.pack(fill="x", pady=(0, 7))
@@ -115,6 +126,12 @@ class OrionDashboard:
         split.add(overview, weight=1)
         split.add(console, weight=4)
 
+    def _set_detail(self, name: str, value: str) -> None:
+        widget = self.detail_views[name]
+        widget.configure(state="normal")
+        widget.delete("1.0", "end")
+        widget.insert("1.0", value)
+        widget.configure(state="disabled")
     def _log(self, level: str, message: str) -> None:
         stamp = datetime.now().astimezone().strftime("%H:%M:%S")
         line = f"[{stamp}] [{level}] {message}"
@@ -213,6 +230,8 @@ class OrionDashboard:
                             "Совместимость Xbox-игр не устанавливается."
                         )
                     self.overview_text.set(details)
+                    self._set_detail("GPU / D3D12", details)
+                    self._set_detail("Обзор", details)
                 elif kind == "gpu_done":
                     self.scan_button.configure(state="normal")
                     self.gpu_button.configure(state="normal")
@@ -239,6 +258,12 @@ class OrionDashboard:
             "Инвентаризация завершена. Это базовый отчёт о системе, а не проверка совместимости конкретной игры. "
             "Нативный D3D12 GPU-тест пока запускается отдельно и здесь не имитируется."
         )
+        self._set_detail("Обзор", self.overview_text.get())
+        win = report.get("windows_diagnostics", {})
+        cpu_info = (win.get("hardware", {}).get("cpu") or {})
+        memory_text = f"{memory / (1024 ** 3):.2f} GiB" if isinstance(memory, int) else "Нет данных"
+        self._set_detail("CPU и память", f"CPU: {cpu}\nЯдер: {cpu_info.get('NumberOfCores', '—')}\nПотоков: {cpu_info.get('NumberOfLogicalProcessors', '—')}\nRAM: {memory_text}")
+        self._set_detail("Совместимость", "Каталог платформ описывает документированные API-контракты Windows PC и Xbox. Он не подтверждает совместимость конкретной игры, её бинарного файла или аппаратной конфигурации.")
         self._log("SUCCESS", f"Система: {os_info['system']} {os_info['release']}; CPU: {cpu}; GPU: {self.card_values['gpu'].get()}.")
 
 
