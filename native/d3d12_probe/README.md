@@ -90,3 +90,23 @@ descriptor heaps, and reports creation outcomes plus descriptor increments.
 These checks do **not** populate descriptors, bind heaps/root signatures to a
 command list, create a pipeline state object, compile shaders, or execute a
 draw/dispatch. A successful result therefore confirms object creation only.
+
+
+## Native HLSL / PSO / draw smoke test
+
+The probe also attempts a small off-screen rendering test per D3D12 hardware
+adapter. It compiles minimal shader-model 5.0 HLSL vertex and pixel shaders
+using the Windows SDK D3DCompiler, creates an empty root signature and a
+graphics PSO, renders a triangle into a 64×64 RGBA8 render target, copies the
+texture to a readback buffer, and verifies a center pixel against the expected
+opaque-red output. The JSON records shader compilation, root-signature
+creation, PSO creation, draw submission, overall verification, and a diagnostic
+note.
+
+This is a narrow driver/runtime smoke test, not a benchmark or full feature
+conformance suite. It uses the legacy D3DCompiler shader compiler and shader
+model 5.0 for broad Windows SDK availability; it does not validate DXIL,
+Shader Model 6.x, Xbox-specific shader behavior, presentation/swap chains,
+depth/stencil, blending variants, or game workloads. A reported draw submission
+means the command list was recorded and submitted; only the overall successful
+readback flag confirms the expected pixel was observed.
