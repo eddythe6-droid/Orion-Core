@@ -80,7 +80,9 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Metadata-only ZIP member listing without extraction
 - [x] Optional bounded SHA-256 hashing and JSON inspection reports
 - [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser
-- [ ] Research Xbox XEX/STFS structures from public documentation and lawful test samples
+- [x] Research and parse public XContent/STFS metadata headers (`CON `, `LIVE`, `PIRS`) without signature/hash verification
+- [x] Identify common GOD/SVOD sibling header + `.data/DataNNNN` layout by metadata only
+- [ ] Research XEX structures and validate STFS/SVOD parsers against lawful, unprotected test samples
 - [x] Add read-only ISO9660 volume and recursive directory inventory
 - [ ] Add read-only parsers for documented asset/container formats
 
@@ -94,7 +96,9 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Read-only ISO9660 volume and directory inventory.
 - [x] Read-only XDVDFS/XISO volume descriptor and binary-tree directory inventory for standard sector-32 and rebuilt sector-0 layouts.
 - [x] Detect common XGD1/XGD2/XGD3 game-partition offsets; hybrid and variable-offset variants remain open.
-- [ ] Inspect STFS/SVOD containers and their relationship to embedded XDVDFS data.
+- [x] Inspect STFS/XContent public metadata and distinguish STFS vs SVOD descriptor types.
+- [x] Identify GOD/SVOD sibling data-file layout without processing payload/hash tables.
+- [ ] Verify SVOD block/hash-table layout against independent public specifications and lawful samples; payload reconstruction intentionally out of current scope.
 - [ ] Validate parsers against legally obtained, unprotected sample images and record format coverage.
 
 Current parser scope and limitations: see `GAME_INSPECTOR.md` and `XDVDFS.md`.
