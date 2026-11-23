@@ -82,7 +82,8 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser
 - [x] Research and parse public XContent/STFS metadata headers (`CON `, `LIVE`, `PIRS`) without signature/hash verification
 - [x] Identify common GOD/SVOD sibling header + `.data/DataNNNN` layout by metadata only
-- [ ] Research XEX structures and validate STFS/SVOD parsers against lawful, unprotected test samples
+- [x] Parse documented public XEX2 wrapper metadata (fixed header, optional-header directory, entry point/base and execution info)
+- [ ] Validate XEX2/STFS/SVOD parsers against lawful, unprotected samples; payload decoding remains out of scope
 - [x] Add read-only ISO9660 volume and recursive directory inventory
 - [ ] Add read-only parsers for documented asset/container formats
 
@@ -98,6 +99,8 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Detect common XGD1/XGD2/XGD3 game-partition offsets; hybrid and variable-offset variants remain open.
 - [x] Inspect STFS/XContent public metadata and distinguish STFS vs SVOD descriptor types.
 - [x] Identify GOD/SVOD sibling data-file layout without processing payload/hash tables.
+- [x] Parse public XEX2 wrapper metadata and integrate it into Game Inspector.
+- [ ] Parse XEX import-library and resource metadata after additional cross-checking against independent implementations.
 - [ ] Verify SVOD block/hash-table layout against independent public specifications and lawful samples; payload reconstruction intentionally out of current scope.
 - [ ] Validate parsers against legally obtained, unprotected sample images and record format coverage.
 
