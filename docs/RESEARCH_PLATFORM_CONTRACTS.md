@@ -84,3 +84,13 @@ GameInput is documented for both PC and Xbox, but version availability is tied t
 - **Services vs transport:** Microsoft's multiplayer overview distinguishes game-data transport, chat, sessions, matchmaking, and invites/join. PlayFab Party can provide relayed cross-platform communication; custom networking is also possible on PC. These service choices and Xbox identity/compliance requirements must be audited separately from low-level socket calls. See https://learn.microsoft.com/en-us/gaming/gdk/docs/services/multiplayer/overviews/multiplayer-intro?view=gdk-2604 and https://learn.microsoft.com/en-us/gaming/gdk/docs/services/multiplayer/overviews/multiplayer-design-guidance-xbox-pc-gdk?view=gdk-2604.
 
 These are documented platform contracts and service options, not claims about the networking implementation of any specific title.
+
+
+## Packaging and installation boundaries
+
+- **Different package formats:** Microsoft's October 2026 GDK documentation identifies XVC for Xbox consoles and MSIXVC for Windows PC. The same makepkg tool supports the targets, but the resulting package formats are distinct and must not be treated as interchangeable. See https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/packaging/overviews/packaging?view=gdk-2610.
+- **MSIXVC2:** Starting with the October 2026 GDK, MSIXVC2 is generally available for PC only; Xbox console games continue to use XVC. MSIXVC2 retains MicrosoftGame.config, layout files, makepkg and the .msixvc extension, while changing content segmentation, compression and update distribution behavior. Defaults are release-specific and should be read from the relevant GDK documentation rather than hard-coded. See https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/packaging/overviews/packaging-msixvc2-overview?view=gdk-2610.
+- **Installation layout:** PC MSIXVC installs to an XboxGames folder as flat files; game data is directly accessible, while executables designated in MicrosoftGame.config remain protected. This is relevant to file access and asset inspection, but does not authorize or imply bypassing package protections or encryption. See https://learn.microsoft.com/en-us/xbox/gdk/docs/features/common/packaging/overviews/packaging-getting-started-for-pc?view=gdk-2604.
+- **Streaming and content chunks:** The package layout file groups content into chunks for streaming installation and Intelligent Delivery. Asset availability can therefore be staged; a porting audit must not assume every optional content chunk is present immediately at launch.
+
+Packaging metadata and file layout are legitimate research surfaces. Orion-Core will not attempt to defeat package encryption, DRM, licensing, or protected executable access.
