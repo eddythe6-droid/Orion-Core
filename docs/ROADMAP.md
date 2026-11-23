@@ -30,6 +30,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 ## Milestone 0.4 — Compatibility test harness
 - [x] Initial hardware-independent graphics lifetime simulator (queue/fence, residency budget, descriptor retirement)
 - [x] Resource transition state tracker (simulation only; runtime GPU validation not implied)
+- [x] Per-subresource transition state tracker (simulation only)
 - [ ] Declarative, read-only checks
 - [x] Timestamped diagnostic report with environment metadata
 - [x] Validate and normalize native D3D12 probe JSON with explicit unknown handling
