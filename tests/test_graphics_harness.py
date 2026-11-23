@@ -80,7 +80,7 @@ def test_resource_state_tracker_validates_and_records_transitions():
     assert tracker.state_of("texture") == ResourceState.RENDER_TARGET
     assert tracker.history[0] == first
     assert tracker.history[-1] == second
-    assert len(tracker.history) == 4
+    assert len(tracker.history) == 2
     assert first.resource_id == "texture"
     assert first.before == ResourceState.COPY_DEST
     assert first.after == ResourceState.SHADER_RESOURCE
@@ -125,10 +125,11 @@ def test_subresource_tracker_transitions_individual_and_all_subresources():
     )
     assert tracker.state_of("texture", 1) == ResourceState.COPY_DEST
 
-    tracker.transition(
+    middle = tracker.history[0]
+    first_other = tracker.transition(
         "texture", ResourceState.COMMON, ResourceState.COPY_DEST, subresource=0
     )
-    tracker.transition(
+    last_other = tracker.transition(
         "texture", ResourceState.COMMON, ResourceState.COPY_DEST, subresource=2
     )
     second = tracker.transition(
@@ -139,7 +140,7 @@ def test_subresource_tracker_transitions_individual_and_all_subresources():
         ResourceState.SHADER_RESOURCE,
         ResourceState.SHADER_RESOURCE,
     )
-    assert tracker.history == (first, second)
+    assert tracker.history == (first, first_other, last_other, second)
 
 
 def test_subresource_tracker_all_transition_is_atomic_on_state_mismatch():
