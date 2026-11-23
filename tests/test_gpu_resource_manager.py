@@ -74,8 +74,8 @@ def test_snapshot_exposes_simulation_boundary():
 def test_manager_integrates_explicit_cross_queue_waits():
     manager = GPUResourceManager(256)
     _resident(manager)
-    graphics = manager.submit_use("texture", "graphics")
-    compute = manager.submit_use("texture", "compute", wait_for=("graphics",))
+    graphics = manager.submit_use("texture", "graphics", access="write")
+    compute = manager.submit_use("texture", "compute")
     with pytest.raises(RuntimeError, match="waiting for producer"):
         manager.complete_queue("compute", compute.value)
     manager.complete_queue("graphics", graphics.value)
@@ -89,3 +89,33 @@ def test_manager_rejects_wait_for_queue_without_resource_use():
     _resident(manager)
     with pytest.raises(ValueError, match="no submitted use"):
         manager.submit_use("texture", "compute", wait_for=("graphics",))
+
+
+
+def test_write_after_read_waits_for_reader_queue_automatically():
+    manager = GPUResourceManager(256)
+    _resident(manager)
+    graphics_read = manager.submit_use("texture", "graphics", access="read")
+    compute_write = manager.submit_use("texture", "compute", access="write")
+    with pytest.raises(RuntimeError, match="waiting for producer"):
+        manager.complete_queue("compute", compute_write.value)
+    manager.complete_queue("graphics", graphics_read.value)
+    manager.complete_queue("compute", compute_write.value)
+
+
+def test_read_after_write_waits_for_writer_queue_automatically():
+    manager = GPUResourceManager(256)
+    _resident(manager)
+    compute_write = manager.submit_use("texture", "compute", access="write")
+    graphics_read = manager.submit_use("texture", "graphics", access="read")
+    with pytest.raises(RuntimeError, match="waiting for producer"):
+        manager.complete_queue("graphics", graphics_read.value)
+    manager.complete_queue("compute", compute_write.value)
+    manager.complete_queue("graphics", graphics_read.value)
+
+
+def test_invalid_resource_access_mode_is_rejected():
+    manager = GPUResourceManager(128)
+    _resident(manager)
+    with pytest.raises(ValueError, match="access must be"):
+        manager.submit_use("texture", "graphics", access="execute")
