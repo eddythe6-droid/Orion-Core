@@ -24,3 +24,12 @@ def test_invalid_pipeline_is_not_hidden_by_other_sections():
     pipeline = PipelineDescription("", "invalid", ())
     report = build_graphics_compatibility_report({}, pipeline)
     assert report["overall"] == "requirements_not_met"
+
+
+def test_unified_report_includes_root_signature_model():
+    from orion_core.root_signature import RootParameter, RootSignatureDescription
+    pipeline = PipelineDescription("basic", "triangle", ("vertex", "pixel"))
+    root = RootSignatureDescription((RootParameter("root_constants", num_32bit_values=4),))
+    report = build_graphics_compatibility_report({}, pipeline, root_signature=root)
+    assert report["sections"]["root_signature"]["status"] == "native_validation_needed"
+    assert report["overall"] == "hardware_validation_needed"
