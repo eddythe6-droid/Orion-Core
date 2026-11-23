@@ -47,3 +47,14 @@ Query availability is reported separately for optional feature structures. Unkno
 ## Validation status
 
 The GitHub Actions Windows job compiles the executable. That is compile validation only. Runtime validation requires executing the binary on a physical Windows PC with a D3D12 adapter and reviewing the resulting JSON.
+
+
+## Importing a probe report into Orion-Core
+
+After copying the JSON output to a file, validate and normalize it with the Python package:
+
+```powershell
+python -m orion_core --gpu-probe-json .\\gpu-report.json
+```
+
+The importer checks the report schema and required adapter fields, then emits a comparison-friendly summary. It preserves unknown optional feature values and explicitly states that a valid hardware probe report does not establish game compatibility. The importer does not execute the native probe itself.
