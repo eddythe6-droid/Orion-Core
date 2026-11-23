@@ -4,8 +4,16 @@ Orion-Core includes a bounded, read-only metadata parser for Xbox DVD File Syste
 
 ## Supported image layouts
 
-- Standard volume descriptor at byte offset `0x10000` (sector 32).
-- Rebuilt images with the descriptor at byte offset zero (sector 0).
+The parser probes the standard volume descriptor at sector 32 relative to these game-partition bases:
+
+| Layout | Partition base | Description |
+|---|---:|---|
+| Bare XISO | `0x00000000` | Extracted game partition |
+| XGD2 | `0x0FD90000` | Common full-disc dump layout |
+| XGD3 | `0x02080000` | Common full-disc dump layout |
+| XGD1 | `0x18300000` | Original Xbox full-disc dump layout |
+
+It also accepts rebuilt XISO images with the descriptor at byte offset zero. The selected layout and partition base are recorded in the report.
 
 The parser validates the 20-byte `MICROSOFT*XBOX*MEDIA` marker at both the beginning and end of the 2048-byte descriptor. It reads the little-endian root directory sector and size, raw creation FILETIME, and the directory tree.
 
@@ -17,7 +25,7 @@ The report includes paths, sizes, extent sectors, attribute bits, and whether th
 
 ## Current limitations
 
-- XGD1/XGD2/XGD3 partition offsets and hybrid layouts are not yet detected.
+- XGD2 video-partition offsets can vary between discs; the fixed-offset probes are common-layout detection, not exhaustive identification. XGD2 hybrid and dual-layer variants are not yet detected.
 - STFS/SVOD containers and split data-file sets are not parsed.
 - No file extraction, mounting, decryption, signature processing, or execution is performed.
 - A directory listing does not establish executable compatibility or prove that the image is complete.
