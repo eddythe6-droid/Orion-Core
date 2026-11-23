@@ -62,7 +62,8 @@ def validate_probe_report(raw: Any) -> dict[str, Any]:
         if "binding_smoke_note" in adapter and not isinstance(adapter["binding_smoke_note"], str):
             raise ProbeReportError(f"adapter {index} binding_smoke_note must be a string")
         for key in ("render_smoke_test", "render_shader_compile", "render_root_signature",
-                    "render_pipeline_state", "render_draw_executed"):
+                    "render_pipeline_state", "render_draw_recorded",
+                    "render_commands_submitted", "render_descriptor_binding"):
             if key in adapter and not isinstance(adapter[key], bool):
                 raise ProbeReportError(f"adapter {index} {key} must be a boolean")
         if "render_smoke_note" in adapter and not isinstance(adapter["render_smoke_note"], str):
@@ -127,7 +128,9 @@ def summarize_probe_report(report: dict[str, Any]) -> dict[str, Any]:
             "render_shader_compile": item.get("render_shader_compile"),
             "render_root_signature": item.get("render_root_signature"),
             "render_pipeline_state": item.get("render_pipeline_state"),
-            "render_draw_executed": item.get("render_draw_executed"),
+            "render_draw_recorded": item.get("render_draw_recorded"),
+            "render_commands_submitted": item.get("render_commands_submitted"),
+            "render_descriptor_binding": item.get("render_descriptor_binding"),
             "render_smoke_note": item.get("render_smoke_note", "unknown"),
             "formats": item.get("formats", []),
         })
