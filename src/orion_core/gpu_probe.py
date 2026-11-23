@@ -51,6 +51,18 @@ def validate_probe_report(raw: Any) -> dict[str, Any]:
                     "raytracing_tier", "mesh_shader_tier", "sampler_feedback_tier"):
             if key in adapter and adapter[key] is not None and not isinstance(adapter[key], str):
                 raise ProbeReportError(f"adapter {index} {key} must be a string or null")
+        formats = adapter.get("formats", [])
+        if not isinstance(formats, list):
+            raise ProbeReportError(f"adapter {index} formats must be a list")
+        for format_index, item in enumerate(formats):
+            if not isinstance(item, dict) or not isinstance(item.get("format"), str):
+                raise ProbeReportError(f"adapter {index} format {format_index} is malformed")
+            if not isinstance(item.get("query_available"), bool):
+                raise ProbeReportError(f"adapter {index} format {format_index} query_available must be a boolean")
+            for mask in ("support1", "support2"):
+                value = item.get(mask)
+                if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value < 0):
+                    raise ProbeReportError(f"adapter {index} format {format_index} {mask} must be a non-negative integer or null")
     return raw
 
 
@@ -70,6 +82,7 @@ def summarize_probe_report(report: dict[str, Any]) -> dict[str, Any]:
             "mesh_shader_tier": item.get("mesh_shader_tier", "unknown"),
             "sampler_feedback_tier": item.get("sampler_feedback_tier", "unknown"),
             "direct_queue_fence_test": item.get("direct_queue_fence_test"),
+            "formats": item.get("formats", []),
         })
     return {
         "schema_version": GPU_PROBE_SCHEMA_VERSION,
