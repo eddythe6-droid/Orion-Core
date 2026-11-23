@@ -38,6 +38,10 @@ The native D3D12 probe performs real operations on the Windows GPU. The Python g
 
 The curated capability catalogue links documented platform capabilities to evidence and preserves unknowns rather than inventing compatibility. It describes platform APIs and constraints, not the internals of a particular game.
 
+### Current case study: GTA VI Xbox Series
+
+Evidence status, published reference hashes, Xbox Series vs Xbox 360 format distinction, and the safe static-analysis plan are documented in [GTA6_XBOX_SERIES_CASE](docs/GTA6_XBOX_SERIES_CASE.md). The reported executable has not been independently obtained or validated by Orion-Core.
+
 ## Requirements
 
 - Python 3.10 or newer.
