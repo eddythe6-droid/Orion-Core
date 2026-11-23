@@ -55,3 +55,18 @@ def test_catalog_tracks_audio_api_extensions_and_xma_boundary():
     assert xma.platform == "xbox"
     assert compare_support(xma, "xbox") == "documented"
     assert compare_support(xma, "windows_pc") == "not_documented_for_target"
+
+
+def test_catalog_tracks_network_api_and_gdk_lifecycle_contracts():
+    records = {item.claim_id: item for item in load_platform_inventory().records}
+    shared = records["GDK-NET-001"]
+    assert shared.subsystem == "networking"
+    assert shared.platform == "both"
+    assert compare_support(shared, "windows_pc") == "documented"
+    assert compare_support(shared, "xbox") == "documented"
+
+    udp = records["GDK-NET-UDP-001"]
+    assert udp.platform == "xbox"
+    assert udp.classification == "extension"
+    assert compare_support(udp, "xbox") == "documented"
+    assert compare_support(udp, "windows_pc") == "not_documented_for_target"
