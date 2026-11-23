@@ -32,7 +32,11 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Resource transition state tracker (simulation only; runtime GPU validation not implied)
 - [ ] Declarative, read-only checks
 - [x] Timestamped diagnostic report with environment metadata
-- [x] Validate and normalize native D3D12 probe JSON with explicit unknown handling\n- [x] Compare two native D3D12 adapter reports conservatively (feature tiers, boolean features, raw format masks)\n- [x] DXGI local/non-local memory budget snapshot and conservative pressure summary\n- [x] Deterministic GPU memory allocation-pressure simulation (not a driver emulator)\n- [ ] Reproducible runtime test results with timestamps and environment metadata
+- [x] Validate and normalize native D3D12 probe JSON with explicit unknown handling
+- [x] Compare two native D3D12 adapter reports conservatively (feature tiers, boolean features, raw format masks)
+- [x] DXGI local/non-local memory budget snapshot and conservative pressure summary
+- [x] Deterministic GPU memory allocation-pressure simulation (not a driver emulator)
+- [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
 - [ ] Reproducible hardware test results with timestamps and environment metadata
