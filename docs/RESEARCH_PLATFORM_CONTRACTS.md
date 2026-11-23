@@ -54,3 +54,12 @@ Represent each discovered dependency as a claim with:
 - [Developing a new title with the GDK in Visual Studio](https://learn.microsoft.com/en-us/gaming/gdk/docs/gdk-dev/get-started/overviews/developing-new-titles-on-gamecore?view=gdk-2604)
 - [Direct3D 12 programming guide](https://learn.microsoft.com/en-us/gaming/gdk/docs/gdk-dev/pc-dev/tutorials/pc-e2e-guide/directx-12-programming-guide?view=gdk-2604)
 - [Development PC hardware and OS requirements](https://learn.microsoft.com/en-us/xbox/gdk/docs/gdk-dev/get-started/overviews/set-up-dev-pc?view=gdk-2604)
+
+
+## Input and save-data details
+
+- **GameInput:** Microsoft documents GameInput for both Xbox and Windows. The API headers/library can be shared through the Microsoft.GameInput NuGet package, but runtime deployment is not identical: PC requires the redistributable or a supported sideloaded runtime, while Xbox includes a runtime in Game OS. The API versions available at runtime depend on the GDK release and runtime selected. See [GameInput FAQ](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-faq?view=gdk-2604) and [GameInput on Xbox](https://learn.microsoft.com/en-us/xbox/gdk/docs/features/common/input/overviews/input-xbox?view=gdk-2610).
+- **Game saves:** The GDK Game Saves developer guide lists XGameSave for PC and Xbox. It also documents endpoint-specific user lifecycle behavior: under the Simple User Model, PC terminates the game when the default user signs out, while console suspends it. Therefore, a shared API does not mean identical lifecycle assumptions. See [Game Saves developer guide](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/game-save/game-saves-developer-guide?view=gdk-2604).
+- **File I/O:** Win32 File I/O belongs to the common GDK programming model. However, paths, package layout, permissions, save-data ownership and synchronization remain separate audit items. See [What is the Microsoft GDK?](https://learn.microsoft.com/en-us/xbox/gdk/docs/gdk-dev/intro/introduction?view=gdk-2604).
+
+These claims describe public platform contracts only. They do not establish that a particular game uses these APIs.
