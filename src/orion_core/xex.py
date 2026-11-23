@@ -48,22 +48,15 @@ def inspect_xex(path: str | Path) -> dict[str, Any]:
         raw_headers.append({"key": f"0x{key:08X}", "value": value})
         optional[f"0x{key:08X}"] = value
 
-    def pointed_header(key: int, minimum: int) -> tuple[int, bytes] | None:
-        value = optional.get(f"0x{key:08X}")
-        if value is None:
+    def fixed_header(key: int, size: int) -> bytes | None:
+        offset = optional.get(f"0x{key:08X}")
+        if offset is None or offset > len(data) - size:
             return None
-        offset = value
-        if offset > len(data) - 4:
-            return None
-        size = _u32(data, offset)
-        if size < minimum or size > len(data) - offset:
-            return None
-        return offset, data[offset:offset + size]
+        return data[offset:offset + size]
 
     exec_info = None
-    block = pointed_header(0x00040006, 0x18)
-    if block:
-        _, raw = block
+    raw = fixed_header(0x00040006, 0x18)
+    if raw is not None:
         exec_info = {
             "media_id": _u32(raw, 0),
             "version_raw": _u32(raw, 4),
