@@ -313,7 +313,17 @@ int main(int argc, char** argv) {
             item << formatReports[formatIndex];
         }
         item << "]"
-             << ",\"options5_query_available\":" << (options5Available ? "true" : "false")
+             << ",\"video_memory\":{"
+             << "\"local\":{\"query_available\":" << (localMemoryAvailable ? "true" : "false")
+             << ",\"budget_bytes\":" << (localMemoryAvailable ? std::to_string(localMemory.Budget) : "null")
+             << ",\"current_usage_bytes\":" << (localMemoryAvailable ? std::to_string(localMemory.CurrentUsage) : "null")
+             << ",\"available_for_reservation_bytes\":" << (localMemoryAvailable ? std::to_string(localMemory.AvailableForReservation) : "null")
+             << "},\"non_local\":{\"query_available\":" << (nonLocalMemoryAvailable ? "true" : "false")
+             << ",\"budget_bytes\":" << (nonLocalMemoryAvailable ? std::to_string(nonLocalMemory.Budget) : "null")
+             << ",\"current_usage_bytes\":" << (nonLocalMemoryAvailable ? std::to_string(nonLocalMemory.CurrentUsage) : "null")
+             << ",\"available_for_reservation_bytes\":" << (nonLocalMemoryAvailable ? std::to_string(nonLocalMemory.AvailableForReservation) : "null")
+             << "}}"
+             << ",\"options5_query_available\":"" << (options5Available ? "true" : "false")
              << ",\"raytracing_tier\":\"" << (options5Available ? raytracingTier : "unknown") << "\""
              << ",\"options7_query_available\":" << (options7Available ? "true" : "false")
              << ",\"mesh_shader_tier\":\"" << (options7Available ? meshShaderTier : "unknown") << "\""
