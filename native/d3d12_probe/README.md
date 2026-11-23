@@ -31,7 +31,7 @@ The process prints one JSON object to standard output. Exit code 0 means at leas
 
 ## Reported data
 
-Per adapter, the report includes adapter name and vendor/device numeric IDs, dedicated video-memory capacity, D3D12 device creation, highest queried feature level, highest accepted shader model, resource binding tier, Options1 wave/compute fields, RGBA8 format support bitmasks, Options5 ray-tracing tier, Options7 mesh-shader and sampler-feedback tiers, and a direct-queue/fence smoke test.
+Per adapter, the report includes adapter name and vendor/device numeric IDs, dedicated video-memory capacity, D3D12 device creation, highest queried feature level, highest accepted shader model, resource binding tier, Options1 wave/compute fields, RGBA8 format support bitmasks, Options5 ray-tracing tier, Options7 mesh-shader and sampler-feedback tiers, a direct-queue/fence smoke test, and an upload-to-default-heap copy test with a transition barrier, readback, and byte-for-byte verification.
 
 Query availability is reported separately for optional feature structures. Unknown values must not be interpreted as unsupported. Format support values are raw D3D12 bitmasks and must be decoded using the Windows SDK definitions corresponding to the probe build.
 
