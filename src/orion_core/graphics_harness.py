@@ -164,3 +164,73 @@ class DescriptorAllocator:
                 keep.append(item)
         self._retired = keep
         return released
+
+
+class ResourceState(str, Enum):
+    """Small explicit subset of D3D12-style resource states for simulation."""
+
+    COMMON = "common"
+    COPY_SOURCE = "copy_source"
+    COPY_DEST = "copy_dest"
+    SHADER_RESOURCE = "shader_resource"
+    UNORDERED_ACCESS = "unordered_access"
+    RENDER_TARGET = "render_target"
+    PRESENT = "present"
+
+
+@dataclass(frozen=True, slots=True)
+class TransitionBarrier:
+    resource_id: str
+    before: ResourceState
+    after: ResourceState
+
+
+class ResourceStateTracker:
+    """Validate explicit resource-state transitions in a deterministic simulation.
+
+    This models only per-resource transition bookkeeping. It does not model
+    command-list execution, subresources, split barriers, aliasing barriers,
+    queue ownership, implicit promotion/decay, or GPU memory visibility.
+    """
+
+    def __init__(self) -> None:
+        self._states: dict[str, ResourceState] = {}
+        self._history: list[TransitionBarrier] = []
+
+    @property
+    def history(self) -> tuple[TransitionBarrier, ...]:
+        return tuple(self._history)
+
+    def register(self, resource_id: str, initial_state: ResourceState) -> None:
+        if not resource_id or resource_id in self._states:
+            raise ValueError("resource id must be non-empty and unique")
+        if not isinstance(initial_state, ResourceState):
+            raise TypeError("initial_state must be a ResourceState")
+        self._states[resource_id] = initial_state
+
+    def state_of(self, resource_id: str) -> ResourceState:
+        try:
+            return self._states[resource_id]
+        except KeyError as exc:
+            raise KeyError(f"unknown resource: {resource_id}") from exc
+
+    def transition(
+        self,
+        resource_id: str,
+        before: ResourceState,
+        after: ResourceState,
+    ) -> TransitionBarrier:
+        current = self.state_of(resource_id)
+        if not isinstance(before, ResourceState) or not isinstance(after, ResourceState):
+            raise TypeError("barrier states must be ResourceState values")
+        if current != before:
+            raise ValueError(
+                f"barrier before-state mismatch for {resource_id}: "
+                f"tracked={current.value}, supplied={before.value}"
+            )
+        if before == after:
+            raise ValueError("no-op transition barriers are not supported")
+        barrier = TransitionBarrier(resource_id, before, after)
+        self._states[resource_id] = after
+        self._history.append(barrier)
+        return barrier
