@@ -10,6 +10,8 @@ VOLUME_MAGIC = b"MICROSOFT*XBOX*MEDIA"
 MAX_DIRECTORY_DEPTH = 32
 MAX_ENTRIES = 100_000
 MAX_NAME_BYTES = 255
+# Common full-disc dump layouts; XDVDFS sectors are partition-relative.
+PARTITION_LAYOUTS = (("XISO", 0x00000000), ("XGD2", 0x0FD90000), ("XGD3", 0x02080000), ("XGD1", 0x18300000))
 
 
 class XDVDFSError(ValueError):
@@ -23,7 +25,7 @@ def _u32(data: bytes) -> int:
 
 
 def inspect_xdvdfs(path: str | Path, *, max_entries: int = MAX_ENTRIES) -> dict[str, Any]:
-    """Inspect standard sector-32 or rebuilt sector-0 XDVDFS images.
+    """Inspect bare XISO and common full-disc XGD1/XGD2/XGD3 layouts.
 
     Sector references are interpreted relative to the detected XDVDFS volume
     base. No file payloads are read, extracted, mounted, or executed.
@@ -36,10 +38,12 @@ def inspect_xdvdfs(path: str | Path, *, max_entries: int = MAX_ENTRIES) -> dict[
         with image.open("rb") as stream:
             volume_base = None
             descriptor_sector = None
+            layout_name = None
             descriptor = None
-            # Standard XISO has descriptor at base + sector 32; rebuilt images
-            # may place the descriptor at byte zero.
-            for base, sector in ((0, 32), (0, 0)):
+            # Probe known game-partition bases; rebuilt sector-zero is bare XISO only.
+            candidates = [(name, base, 32) for name, base in PARTITION_LAYOUTS]
+            candidates.append(("XISO_REBUILT", 0, 0))
+            for candidate_layout, base, sector in candidates:
                 offset = base + sector * SECTOR_SIZE
                 if offset + SECTOR_SIZE > image_size:
                     continue
@@ -48,10 +52,10 @@ def inspect_xdvdfs(path: str | Path, *, max_entries: int = MAX_ENTRIES) -> dict[
                 if (len(candidate) == SECTOR_SIZE
                         and candidate[:20] == VOLUME_MAGIC
                         and candidate[0x7EC:0x800] == VOLUME_MAGIC):
-                    volume_base, descriptor_sector, descriptor = base, sector, candidate
+                    volume_base, descriptor_sector, layout_name, descriptor = base, sector, candidate_layout, candidate
                     break
             if descriptor is None:
-                raise XDVDFSError("XDVDFS volume descriptor not found at sector 32 or sector 0")
+                raise XDVDFSError("XDVDFS volume descriptor not found at known XISO/XGD partition offsets")
 
             root_sector = _u32(descriptor[0x14:0x18])
             root_size = _u32(descriptor[0x18:0x1C])
@@ -146,6 +150,7 @@ def inspect_xdvdfs(path: str | Path, *, max_entries: int = MAX_ENTRIES) -> dict[
     return {
         "format": "XDVDFS",
         "volume_base_offset": volume_base,
+        "disc_layout": layout_name,
         "descriptor_sector": descriptor_sector,
         "sector_size": SECTOR_SIZE,
         "root_directory_sector": root_sector,
