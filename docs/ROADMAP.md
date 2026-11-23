@@ -1,5 +1,7 @@
 # Roadmap
 
+Project focus: evidence-backed research into Xbox-to-Windows PC platform portability. Hardware diagnostics are supporting utilities, not the project goal. This roadmap does not imply access to proprietary game source code or assets.
+
 ## Milestone 0.1 — Read-only baseline
 - [x] Basic operating-system, architecture, CPU-count, memory, and Python runtime report
 - [x] JSON output
@@ -14,7 +16,14 @@
 - [ ] Add explicit DirectX feature-level and Vulkan device-capability probes
 - [ ] Stable JSON schema and report versioning
 
-## Milestone 0.3 — Compatibility test harness
+## Milestone 0.3 — Evidence-backed platform model
+- [x] Validated evidence records with source provenance
+- [x] Machine-readable capability inventory with schema version
+- [x] Conservative Windows PC/Xbox support assessment; unknown remains unknown
+- [ ] Populate the inventory from official, versioned platform documentation
+- [ ] Add JSON CLI export and schema compatibility tests
+
+## Milestone 0.4 — Compatibility test harness
 - [ ] Declarative, read-only checks
 - [ ] Reproducible test results with timestamps and environment metadata
 - [ ] Exportable compatibility reports
