@@ -234,3 +234,91 @@ class ResourceStateTracker:
         self._states[resource_id] = after
         self._history.append(barrier)
         return barrier
+
+
+@dataclass(frozen=True, slots=True)
+class SubresourceTransitionBarrier:
+    """A simulated transition for one subresource or every subresource."""
+
+    resource_id: str
+    subresource: int | None
+    before: ResourceState
+    after: ResourceState
+
+
+class SubresourceStateTracker:
+    """Track explicit states independently for each resource subresource.
+
+    This is a deterministic CPU-side model. It does not model D3D12 implicit
+    promotion/decay, split or aliasing barriers, queue ownership, or execution.
+    """
+
+    ALL_SUBRESOURCES = None
+
+    def __init__(self) -> None:
+        self._states: dict[str, list[ResourceState]] = {}
+        self._history: list[SubresourceTransitionBarrier] = []
+
+    @property
+    def history(self) -> tuple[SubresourceTransitionBarrier, ...]:
+        return tuple(self._history)
+
+    def register(
+        self, resource_id: str, subresource_count: int,
+        initial_state: ResourceState,
+    ) -> None:
+        if not resource_id or resource_id in self._states:
+            raise ValueError("resource id must be non-empty and unique")
+        if not isinstance(subresource_count, int) or isinstance(subresource_count, bool) or subresource_count <= 0:
+            raise ValueError("subresource_count must be a positive integer")
+        if not isinstance(initial_state, ResourceState):
+            raise TypeError("initial_state must be a ResourceState")
+        self._states[resource_id] = [initial_state] * subresource_count
+
+    def subresource_count(self, resource_id: str) -> int:
+        return len(self._get(resource_id))
+
+    def state_of(
+        self, resource_id: str, subresource: int | None = None,
+    ) -> ResourceState | tuple[ResourceState, ...]:
+        states = self._get(resource_id)
+        if subresource is None:
+            return tuple(states)
+        self._validate_index(subresource, len(states))
+        return states[subresource]
+
+    def transition(
+        self, resource_id: str, before: ResourceState, after: ResourceState,
+        subresource: int | None = None,
+    ) -> SubresourceTransitionBarrier:
+        states = self._get(resource_id)
+        if not isinstance(before, ResourceState) or not isinstance(after, ResourceState):
+            raise TypeError("barrier states must be ResourceState values")
+        if before == after:
+            raise ValueError("no-op transition barriers are not supported")
+        indices = range(len(states)) if subresource is None else (subresource,)
+        for index in indices:
+            self._validate_index(index, len(states))
+            if states[index] != before:
+                raise ValueError(
+                    f"barrier before-state mismatch for {resource_id}[{index}]: "
+                    f"tracked={states[index].value}, supplied={before.value}"
+                )
+        for index in indices:
+            states[index] = after
+        barrier = SubresourceTransitionBarrier(resource_id, subresource, before, after)
+        self._history.append(barrier)
+        return barrier
+
+    def _get(self, resource_id: str) -> list[ResourceState]:
+        try:
+            return self._states[resource_id]
+        except KeyError as exc:
+            raise KeyError(f"unknown resource: {resource_id}") from exc
+
+    @staticmethod
+    def _validate_index(index: int, count: int) -> None:
+        if not isinstance(index, int) or isinstance(index, bool):
+            raise TypeError("subresource index must be an integer")
+        if index < 0 or index >= count:
+            raise IndexError("subresource index out of range")
