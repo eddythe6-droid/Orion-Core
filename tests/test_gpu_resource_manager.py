@@ -133,3 +133,17 @@ def test_manager_exposes_shared_fence_aware_descriptor_heap():
     manager.complete_queue("compute", compute.value)
     assert manager.descriptors.collect() == [descriptor_range]
     assert manager.snapshot()["descriptor_heap"]["native_descriptor_heap_created"] is False
+
+
+def test_manager_tracks_writer_queue_ownership_and_handoff():
+    manager = GPUResourceManager(128)
+    _resident(manager)
+    first = manager.submit_use("texture", "graphics", access="write")
+    second = manager.submit_use("texture", "compute", access="write")
+    ownership = manager.snapshot()["resource_ownership"]
+    assert ownership["owners"]["texture"] == "compute"
+    transfer = ownership["transfers"][-1]
+    assert transfer["previous_queue"] == "graphics"
+    assert transfer["dependency"] == {"queue": "graphics", "fence_value": first.value}
+    manager.complete_queue("graphics", first.value)
+    manager.complete_queue("compute", second.value)
