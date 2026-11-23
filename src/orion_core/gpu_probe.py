@@ -83,3 +83,94 @@ def summarize_probe_report(report: dict[str, Any]) -> dict[str, Any]:
             "unknown_values_are_not_unsupported": True,
         },
     }
+
+
+
+def _version_tuple(value: Any) -> tuple[int, ...] | None:
+    if not isinstance(value, str) or value in {"", "unknown", "not_supported"}:
+        return None
+    try:
+        parts = tuple(int(part) for part in value.split("_"))
+    except ValueError:
+        return None
+    return parts
+
+
+def compare_gpu_adapters(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
+    """Compare two validated adapter records without inferring game compatibility.
+
+    Version/tier fields are compared numerically only when both are known.
+    Boolean feature fields are compared only when both sides reported a bool.
+    Raw format masks are compared as bit sets, not decoded into usage claims.
+    """
+    version_fields = (
+        "feature_level", "shader_model", "resource_binding_tier",
+        "raytracing_tier", "mesh_shader_tier", "sampler_feedback_tier",
+    )
+    boolean_fields = (
+        "wave_ops", "int64_shader_ops", "expanded_compute_resource_states",
+    )
+    results: list[dict[str, Any]] = []
+    for field in version_fields:
+        a, b = left.get(field, "unknown"), right.get(field, "unknown")
+        av, bv = _version_tuple(a), _version_tuple(b)
+        if a == "not_supported" and b == "not_supported":
+            status, relation = "same", "neither reports support"
+        elif av is None or bv is None:
+            status, relation = "unknown", "one or both values are unknown or not comparable"
+        elif av == bv:
+            status, relation = "same", "same reported level"
+        elif av > bv:
+            status, relation = "left_higher", "left reports a higher level"
+        else:
+            status, relation = "right_higher", "right reports a higher level"
+        results.append({"capability": field, "left": a, "right": b,
+                        "status": status, "relation": relation})
+
+    for field in boolean_fields:
+        a, b = left.get(field), right.get(field)
+        if not isinstance(a, bool) or not isinstance(b, bool):
+            status, relation = "unknown", "one or both queries did not return a boolean"
+        elif a == b:
+            status, relation = "same", "same reported value"
+        else:
+            status, relation = "left_only" if a else "right_only", "reported on one adapter only"
+        results.append({"capability": field, "left": a, "right": b,
+                        "status": status, "relation": relation})
+
+    for field in ("rgba8_support1", "rgba8_support2"):
+        a, b = left.get(field), right.get(field)
+        if not isinstance(a, int) or isinstance(a, bool) or not isinstance(b, int) or isinstance(b, bool):
+            results.append({"capability": field, "left": a, "right": b,
+                            "status": "unknown", "relation": "format query unavailable"})
+        else:
+            results.append({
+                "capability": field, "left": a, "right": b,
+                "status": "same" if a == b else "different_masks",
+                "left_only_bits": a & ~b, "right_only_bits": b & ~a,
+                "relation": "raw SDK bitmasks; usage flags are not decoded here",
+            })
+
+    return {
+        "schema_version": GPU_PROBE_SCHEMA_VERSION,
+        "comparison": "windows_d3d12_adapter_capabilities",
+        "left_adapter": left.get("name", "unnamed"),
+        "right_adapter": right.get("name", "unnamed"),
+        "capability_count": len(results),
+        "summary": {
+            "same": sum(item["status"] == "same" for item in results),
+            "left_higher": sum(item["status"] == "left_higher" for item in results),
+            "right_higher": sum(item["status"] == "right_higher" for item in results),
+            "left_only": sum(item["status"] == "left_only" for item in results),
+            "right_only": sum(item["status"] == "right_only" for item in results),
+            "different_masks": sum(item["status"] == "different_masks" for item in results),
+            "unknown": sum(item["status"] == "unknown" for item in results),
+        },
+        "results": results,
+        "limitations": [
+            "Compares reported Windows D3D12 adapter capabilities only.",
+            "Does not measure performance or current memory budget.",
+            "Raw format support masks are not decoded into specific usage claims.",
+            "Does not establish Xbox D3D12.x support or game compatibility.",
+        ],
+    }
