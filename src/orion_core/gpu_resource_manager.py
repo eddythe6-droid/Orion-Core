@@ -8,6 +8,7 @@ from .graphics_harness import FencePoint, ResourceState, ResourceStateTracker
 from .resource_streaming import ResourcePriority, ResourceStatus
 from .streaming_gpu import FenceAwareStreamingEngine
 from .queue_sync import QueueSynchronizer
+from .descriptor_heap import DescriptorHeapManager
 
 
 @dataclass(slots=True)
@@ -39,6 +40,7 @@ class GPUResourceManager:
         self.states = ResourceStateTracker()
         self.deferred = DeferredReleaseQueue(self.queues)
         self.synchronizer = QueueSynchronizer(self.queues)
+        self.descriptors = DescriptorHeapManager(4096, self.queues)
         self.resources: dict[str, ManagedResource] = {}
 
     def request(self, resource_id: str, size_bytes: int,
@@ -147,6 +149,7 @@ class GPUResourceManager:
             "streaming": self.streaming.snapshot(),
             "deferred_release": self.deferred.snapshot(),
             "queue_synchronization": self.synchronizer.snapshot(),
+            "descriptor_heap": self.descriptors.snapshot(),
             "simulation_only": True,
             "gpu_commands_executed": False,
             "gpu_resources_created_or_destroyed": False,
