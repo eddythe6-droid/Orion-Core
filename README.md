@@ -35,4 +35,4 @@ The current Windows collector reads CPU and display-adapter properties through C
 
 The tool is read-only: it does not change registry values, install software or drivers, run downloaded executables, or collect device serial numbers, MAC addresses, usernames, hostnames, or personal files.
 
-See [ROADMAP](docs/ROADMAP.md) and [SAFETY](docs/SAFETY.md).
+See [ROADMAP](docs/ROADMAP.md), [SAFETY](docs/SAFETY.md), and the [agent team charter](docs/AGENT_TEAM.md). Role prompts for compatible coding-agent environments are stored in `.github/agents/`.
