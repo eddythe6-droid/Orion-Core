@@ -87,26 +87,34 @@ The report classifies usage against the reported budget (low <70%, moderate 70�
 The probe also attempts a native binding smoke test per hardware adapter. It
 creates an empty root signature and shader-visible CBV/SRV/UAV and sampler
 descriptor heaps, and reports creation outcomes plus descriptor increments.
-These checks do **not** populate descriptors, bind heaps/root signatures to a
-command list, create a pipeline state object, compile shaders, or execute a
-draw/dispatch. A successful result therefore confirms object creation only.
+The separate render smoke test now populates a CBV in a shader-visible
+CBV/SRV/UAV heap, binds that heap and a one-range root descriptor table to a
+graphics command list, and has the pixel shader consume the constant-buffer
+value. The off-screen draw is read back and checked for the expected green
+pixel. The report distinguishes draw recording, command-list submission,
+descriptor binding setup, and successful pixel verification.
 
 
 ## Native HLSL / PSO / draw smoke test
 
 The probe also attempts a small off-screen rendering test per D3D12 hardware
 adapter. It compiles minimal shader-model 5.0 HLSL vertex and pixel shaders
-using the Windows SDK D3DCompiler, creates an empty root signature and a
-graphics PSO, renders a triangle into a 64×64 RGBA8 render target, copies the
-texture to a readback buffer, and verifies a center pixel against the expected
-opaque-red output. The JSON records shader compilation, root-signature
-creation, PSO creation, draw submission, overall verification, and a diagnostic
-note.
+using the Windows SDK D3DCompiler, creates a root signature with a pixel-stage
+CBV descriptor table and a graphics PSO, allocates/maps a 256-byte upload
+constant buffer, populates a shader-visible CBV descriptor, binds the descriptor
+heap and root table, and renders a triangle into a 64×64 RGBA8 render target.
+The pixel shader reads the CBV value. The texture is copied to a readback
+buffer and the center pixel is verified against the expected opaque-green
+output. JSON distinguishes shader compilation, root-signature creation, PSO
+creation, descriptor binding setup, draw recording, command-list submission,
+overall pixel verification, and a diagnostic note.
 
 This is a narrow driver/runtime smoke test, not a benchmark or full feature
 conformance suite. It uses the legacy D3DCompiler shader compiler and shader
 model 5.0 for broad Windows SDK availability; it does not validate DXIL,
 Shader Model 6.x, Xbox-specific shader behavior, presentation/swap chains,
-depth/stencil, blending variants, or game workloads. A reported draw submission
-means the command list was recorded and submitted; only the overall successful
-readback flag confirms the expected pixel was observed.
+depth/stencil, blending variants, or game workloads. A reported draw-recorded flag means the draw command was recorded; the
+commands-submitted flag means the closed command list was submitted to the
+queue. The descriptor-binding flag indicates that the CBV descriptor and root
+table setup completed. Only the overall successful readback flag confirms the
+expected pixel was observed.
