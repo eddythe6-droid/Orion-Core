@@ -1,6 +1,7 @@
 #include <windows.h>
 // Keep the native probe build gated by Windows CI.
 #include <d3d12.h>
+#include <d3dcompiler.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
 
@@ -314,6 +315,263 @@ static BindingSmokeResult run_binding_smoke_test(ID3D12Device* device) {
     return result;
 }
 
+
+
+struct RenderSmokeResult {
+    bool success = false;
+    bool shaderCompile = false;
+    bool rootSignature = false;
+    bool pipelineState = false;
+    bool drawExecuted = false;
+    std::string note = "not_run";
+};
+
+static RenderSmokeResult run_render_smoke_test(
+    ID3D12Device* device, ID3D12CommandQueue* queue) {
+    RenderSmokeResult result;
+    constexpr UINT width = 64;
+    constexpr UINT height = 64;
+    constexpr DXGI_FORMAT targetFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    ComPtr<ID3DBlob> vertexShader, pixelShader, errors;
+    const char* shaderSource =
+        "struct VOut { float4 position : SV_Position; };"
+        "VOut VSMain(uint id : SV_VertexID) {"
+        " float2 p[3] = { float2(-1.0, -1.0), float2(-1.0, 3.0), float2(3.0, -1.0) };"
+        " VOut o; o.position = float4(p[id], 0.0, 1.0); return o; }"
+        "float4 PSMain() : SV_Target { return float4(1.0, 0.0, 0.0, 1.0); }";
+    HRESULT hr = D3DCompile(shaderSource, strlen(shaderSource), "orion_smoke.hlsl",
+        nullptr, nullptr, "VSMain", "vs_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL3,
+        0, &vertexShader, &errors);
+    if (FAILED(hr)) {
+        result.note = "vertex_shader_compile:" + hr_string(hr);
+        return result;
+    }
+    hr = D3DCompile(shaderSource, strlen(shaderSource), "orion_smoke.hlsl",
+        nullptr, nullptr, "PSMain", "ps_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL3,
+        0, &pixelShader, &errors);
+    if (FAILED(hr)) {
+        result.note = "pixel_shader_compile:" + hr_string(hr);
+        return result;
+    }
+    result.shaderCompile = true;
+
+    D3D12_ROOT_SIGNATURE_DESC rootDesc{};
+    rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+    ComPtr<ID3DBlob> serializedRoot, rootErrors;
+    hr = D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+        &serializedRoot, &rootErrors);
+    if (FAILED(hr)) {
+        result.note = "root_signature_serialize:" + hr_string(hr);
+        return result;
+    }
+    ComPtr<ID3D12RootSignature> rootSignature;
+    hr = device->CreateRootSignature(0, serializedRoot->GetBufferPointer(),
+        serializedRoot->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+    if (FAILED(hr)) {
+        result.note = "root_signature_create:" + hr_string(hr);
+        return result;
+    }
+    result.rootSignature = true;
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+    psoDesc.pRootSignature = rootSignature.Get();
+    psoDesc.VS = {vertexShader->GetBufferPointer(), vertexShader->GetBufferSize()};
+    psoDesc.PS = {pixelShader->GetBufferPointer(), pixelShader->GetBufferSize()};
+    psoDesc.BlendState.AlphaToCoverageEnable = FALSE;
+    psoDesc.BlendState.IndependentBlendEnable = FALSE;
+    const D3D12_RENDER_TARGET_BLEND_DESC blend = {
+        FALSE, FALSE, D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+        D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+        D3D12_LOGIC_OP_NOOP,
+        D3D12_COLOR_WRITE_ENABLE_ALL
+    };
+    for (auto& target : psoDesc.BlendState.RenderTarget) target = blend;
+    psoDesc.SampleMask = UINT_MAX;
+    psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+    psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    psoDesc.RasterizerState.FrontCounterClockwise = FALSE;
+    psoDesc.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+    psoDesc.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+    psoDesc.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+    psoDesc.RasterizerState.DepthClipEnable = TRUE;
+    psoDesc.RasterizerState.MultisampleEnable = FALSE;
+    psoDesc.RasterizerState.AntialiasedLineEnable = FALSE;
+    psoDesc.RasterizerState.ForcedSampleCount = 0;
+    psoDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+    psoDesc.DepthStencilState.DepthEnable = FALSE;
+    psoDesc.DepthStencilState.StencilEnable = FALSE;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.NumRenderTargets = 1;
+    psoDesc.RTVFormats[0] = targetFormat;
+    psoDesc.SampleDesc.Count = 1;
+    ComPtr<ID3D12PipelineState> pipeline;
+    hr = device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipeline));
+    if (FAILED(hr)) {
+        result.note = "graphics_pso_create:" + hr_string(hr);
+        return result;
+    }
+    result.pipelineState = true;
+
+    D3D12_HEAP_PROPERTIES defaultHeap{};
+    defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+    defaultHeap.CreationNodeMask = 1;
+    defaultHeap.VisibleNodeMask = 1;
+    D3D12_RESOURCE_DESC textureDesc{};
+    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    textureDesc.Width = width;
+    textureDesc.Height = height;
+    textureDesc.DepthOrArraySize = 1;
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = targetFormat;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    D3D12_CLEAR_VALUE clearValue{};
+    clearValue.Format = targetFormat;
+    clearValue.Color[0] = 0.0f;
+    clearValue.Color[1] = 0.0f;
+    clearValue.Color[2] = 0.0f;
+    clearValue.Color[3] = 1.0f;
+    ComPtr<ID3D12Resource> renderTarget;
+    hr = device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE,
+        &textureDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue,
+        IID_PPV_ARGS(&renderTarget));
+    if (FAILED(hr)) {
+        result.note = "render_target_create:" + hr_string(hr);
+        return result;
+    }
+
+    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc{};
+    rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    rtvHeapDesc.NumDescriptors = 1;
+    ComPtr<ID3D12DescriptorHeap> rtvHeap;
+    hr = device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap));
+    if (FAILED(hr)) {
+        result.note = "rtv_heap_create:" + hr_string(hr);
+        return result;
+    }
+    device->CreateRenderTargetView(renderTarget.Get(), nullptr,
+        rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
+    UINT rows = 0;
+    UINT64 rowSize = 0;
+    UINT64 totalBytes = 0;
+    device->GetCopyableFootprints(&textureDesc, 0, 1, 0,
+        &footprint, &rows, &rowSize, &totalBytes);
+    D3D12_HEAP_PROPERTIES readbackHeap{};
+    readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+    readbackHeap.CreationNodeMask = 1;
+    readbackHeap.VisibleNodeMask = 1;
+    D3D12_RESOURCE_DESC bufferDesc{};
+    bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    bufferDesc.Width = totalBytes;
+    bufferDesc.Height = 1;
+    bufferDesc.DepthOrArraySize = 1;
+    bufferDesc.MipLevels = 1;
+    bufferDesc.SampleDesc.Count = 1;
+    bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    ComPtr<ID3D12Resource> readback;
+    hr = device->CreateCommittedResource(&readbackHeap, D3D12_HEAP_FLAG_NONE,
+        &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+        IID_PPV_ARGS(&readback));
+    if (FAILED(hr)) {
+        result.note = "readback_create:" + hr_string(hr);
+        return result;
+    }
+
+    ComPtr<ID3D12CommandAllocator> allocator;
+    ComPtr<ID3D12GraphicsCommandList> list;
+    hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+        IID_PPV_ARGS(&allocator));
+    if (FAILED(hr)) {
+        result.note = "allocator_create:" + hr_string(hr);
+        return result;
+    }
+    hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+        allocator.Get(), pipeline.Get(), IID_PPV_ARGS(&list));
+    if (FAILED(hr)) {
+        result.note = "command_list_create:" + hr_string(hr);
+        return result;
+    }
+    const auto rtv = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+    const FLOAT clear[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    list->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+    list->ClearRenderTargetView(rtv, clear, 0, nullptr);
+    D3D12_VIEWPORT viewport{0.0f, 0.0f, static_cast<float>(width),
+        static_cast<float>(height), 0.0f, 1.0f};
+    D3D12_RECT scissor{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+    list->RSSetViewports(1, &viewport);
+    list->RSSetScissorRects(1, &scissor);
+    list->SetGraphicsRootSignature(rootSignature.Get());
+    list->SetPipelineState(pipeline.Get());
+    list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    list->DrawInstanced(3, 1, 0, 0);
+    result.drawExecuted = true;
+
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = renderTarget.Get();
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+    list->ResourceBarrier(1, &barrier);
+    D3D12_TEXTURE_COPY_LOCATION dst{};
+    dst.pResource = readback.Get();
+    dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    dst.PlacedFootprint = footprint;
+    D3D12_TEXTURE_COPY_LOCATION src{};
+    src.pResource = renderTarget.Get();
+    src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    src.SubresourceIndex = 0;
+    list->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+    hr = list->Close();
+    if (FAILED(hr)) {
+        result.note = "command_list_close:" + hr_string(hr);
+        return result;
+    }
+    ID3D12CommandList* lists[] = {list.Get()};
+    queue->ExecuteCommandLists(1, lists);
+
+    ComPtr<ID3D12Fence> fence;
+    hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+    if (FAILED(hr)) {
+        result.note = "fence_create:" + hr_string(hr);
+        return result;
+    }
+    HANDLE eventHandle = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    if (!eventHandle) {
+        result.note = "event_creation_failed";
+        return result;
+    }
+    hr = queue->Signal(fence.Get(), 1);
+    const bool completed = SUCCEEDED(hr) && wait_for_fence(fence.Get(), 1, eventHandle);
+    CloseHandle(eventHandle);
+    if (!completed) {
+        result.note = "render_fence_wait_failed";
+        return result;
+    }
+
+    const D3D12_RANGE readRange{0, static_cast<SIZE_T>(totalBytes)};
+    std::uint8_t* pixels = nullptr;
+    hr = readback->Map(0, &readRange, reinterpret_cast<void**>(&pixels));
+    if (FAILED(hr)) {
+        result.note = "render_readback_map:" + hr_string(hr);
+        return result;
+    }
+    const size_t pixelOffset = static_cast<size_t>(height / 2) * footprint.Footprint.RowPitch
+        + static_cast<size_t>(width / 2) * 4;
+    const bool pixelMatches = pixels[pixelOffset] == 255 &&
+        pixels[pixelOffset + 1] == 0 && pixels[pixelOffset + 2] == 0 &&
+        pixels[pixelOffset + 3] == 255;
+    const D3D12_RANGE noWrite{0, 0};
+    readback->Unmap(0, &noWrite);
+    result.success = pixelMatches;
+    result.note = pixelMatches ? "hlsl_pso_draw_readback_pixel_verified"
+                               : "render_readback_pixel_mismatch";
+    return result;
+}
+
 int main(int argc, char** argv) {
     bool includeSoftware = false;
     for (int i = 1; i < argc; ++i) {
@@ -503,6 +761,7 @@ int main(int argc, char** argv) {
 
         const ResourceSmokeResult resourceSmoke = queue ? run_resource_copy_smoke_test(device.Get(), queue.Get()) : ResourceSmokeResult{false, "queue_unavailable"};
         const BindingSmokeResult bindingSmoke = run_binding_smoke_test(device.Get());
+        const RenderSmokeResult renderSmoke = queue ? run_render_smoke_test(device.Get(), queue.Get()) : RenderSmokeResult{};
         std::ostringstream item;
         item << "{\"name\":\"" << json_escape(narrow(desc.Description))
              << "\",\"vendor_id\":" << desc.VendorId
@@ -553,7 +812,13 @@ int main(int argc, char** argv) {
              << ",\"sampler_descriptor_heap_smoke_test\":" << (bindingSmoke.samplerHeapCreated ? "true" : "false")
              << ",\"resource_descriptor_increment\":" << bindingSmoke.resourceDescriptorIncrement
              << ",\"sampler_descriptor_increment\":" << bindingSmoke.samplerDescriptorIncrement
-             << ",\"binding_smoke_note\":\"" << json_escape(bindingSmoke.note) << "\"}";
+             << ",\"binding_smoke_note\":\"" << json_escape(bindingSmoke.note) << "\""
+             << ",\"render_smoke_test\":" << (renderSmoke.success ? "true" : "false")
+             << ",\"render_shader_compile\":" << (renderSmoke.shaderCompile ? "true" : "false")
+             << ",\"render_root_signature\":" << (renderSmoke.rootSignature ? "true" : "false")
+             << ",\"render_pipeline_state\":" << (renderSmoke.pipelineState ? "true" : "false")
+             << ",\"render_draw_executed\":" << (renderSmoke.drawExecuted ? "true" : "false")
+             << ",\"render_smoke_note\":\"" << json_escape(renderSmoke.note) << "\"}";
         adapterReports.push_back(item.str());
     }
 
