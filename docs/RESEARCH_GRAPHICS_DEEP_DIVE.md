@@ -77,3 +77,14 @@ Then, on a Windows PC with a supported D3D12 adapter, add a small native sample 
 - Microsoft: [Resource binding overview](https://learn.microsoft.com/en-us/windows/win32/direct3d12/resource-binding-flow-of-control)
 - Microsoft: [Hardware Feature Levels](https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels)
 - Microsoft: [Porting from Direct3D 11 to Direct3D 12](https://learn.microsoft.com/en-us/windows/win32/direct3d12/porting-from-direct3d-11-to-direct3d-12)
+
+
+## Native probe capability snapshot (implemented)
+
+The Windows-only C++ probe now records additional public D3D12 queries per successfully created hardware device:
+
+- `D3D12_FEATURE_D3D12_OPTIONS1`: wave-operation support, minimum/maximum wave lane count, total lane count, 64-bit shader integer operations, and expanded compute resource states.
+- `D3D12_FEATURE_FORMAT_SUPPORT` for `DXGI_FORMAT_R8G8B8A8_UNORM`, preserving both support bitmasks.
+- Query availability is emitted separately. Values are JSON `null` when the query fails; they are not silently converted to `false` or zero.
+
+These are adapter/runtime observations, not a prediction of game compatibility. A format support bitmask must be decoded against the Windows SDK definitions used to build the probe. The probe does not yet test ray tracing, mesh shaders, sampler feedback, actual shader compilation, presentation, or sustained GPU workloads. CI compilation is not a substitute for running the executable on physical Windows hardware.
