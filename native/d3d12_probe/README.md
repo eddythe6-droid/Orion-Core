@@ -27,7 +27,7 @@ Include software adapters only when specifically useful for diagnosis:
 .\build\d3d12-probe\Release\orion-d3d12-probe.exe --json --include-software
 ```
 
-The process prints one JSON object to standard output. Exit code 0 means at least one hardware adapter successfully created a D3D12 device; exit code 3 means no hardware D3D12 adapter was successfully created; exit code 1 indicates an early DXGI setup failure; exit code 2 indicates invalid command-line arguments.
+The process prints one JSON object to standard output. Progress events are emitted as `[ORION_PROGRESS] ...` lines to standard error; consumers can display these without corrupting the JSON stream. Exit code 0 means at least one hardware adapter successfully created a D3D12 device; exit code 3 means no hardware D3D12 adapter was successfully created; exit code 1 indicates an early DXGI setup failure; exit code 2 indicates invalid command-line arguments.
 
 ## Reported data
 
