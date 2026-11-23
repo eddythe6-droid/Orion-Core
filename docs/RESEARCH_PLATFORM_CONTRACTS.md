@@ -63,3 +63,14 @@ Represent each discovered dependency as a claim with:
 - **File I/O:** Win32 File I/O belongs to the common GDK programming model. However, paths, package layout, permissions, save-data ownership and synchronization remain separate audit items. See [What is the Microsoft GDK?](https://learn.microsoft.com/en-us/xbox/gdk/docs/gdk-dev/intro/introduction?view=gdk-2604).
 
 These claims describe public platform contracts only. They do not establish that a particular game uses these APIs.
+
+
+## Audio: shared API family, platform extensions, and format limits
+
+- **Shared audio foundation:** Microsoft's GDK overview lists XAudio2 in the common programming model. It separately lists Xbox Audio extensions and XMA support on Xbox, while the Windows SDK documentation describes public XAudio APIs as stock APIs without device-specific audio extensions. The API family name alone is therefore not proof that all Xbox audio functionality is available on PC. See https://learn.microsoft.com/en-us/gaming/gdk/docs/gdk-dev/intro/introduction?view=gdk-2604 and https://learn.microsoft.com/en-us/gaming/gdk/docs/gdk-dev/get-started/overviews/sdk-and-tools?view=gdk-2604.
+- **XMA:** Microsoft's redistributable XAudio 2.9 guide states that XMA is supported only on Xbox One, not PC. This is a concrete format compatibility boundary to test when a title's asset formats are known; it does not establish that any particular game uses XMA. See https://learn.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-redistributable.
+- **PC alternatives:** The GDK overview lists WASAPI and ISpatialAudioClient in the Windows audio model. A porting investigation should identify whether a feature depends on standard XAudio2 behavior, an Xbox Audio extension, XMA decoding, or a Windows-specific audio endpoint/spatial-audio path.
+
+## Input portability detail
+
+GameInput is documented for both PC and Xbox, but version availability is tied to the runtime. The PC redistributable is installed or the runtime can be sideloaded; on Xbox the runtime is included with Game OS, and the API versions available depend on the GDK release and any sideloaded runtime. Microsoft also documents focus behavior differences: on console input is delivered to the focused application, while PC behavior is different. See https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-versioning and https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/porting/input-porting-xinput?view=gdk-2604.
