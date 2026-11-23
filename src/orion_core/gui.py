@@ -195,16 +195,16 @@ class OrionDashboard:
                             ("Root signature", adapter.get("root_signature_smoke_test")),
                             ("Рендер/readback", adapter.get("render_smoke_test")),
                         )
-                        test_lines = "\\n".join(
+                        test_lines = "\n".join(
                             f"{label}: {'OK' if value is True else 'ОШИБКА' if value is False else 'НЕТ ДАННЫХ'}"
                             for label, value in tests
                         )
                         details = (
-                            f"GPU: {adapter['name']}\\n"
+                            f"GPU: {adapter['name']}\n"
                             f"Feature Level: {adapter.get('feature_level', 'unknown')} | "
                             f"Shader Model: {adapter.get('shader_model', 'unknown')} | "
-                            f"Binding Tier: {adapter.get('resource_binding_tier', 'unknown')}\\n"
-                            f"{memory_line}\\n{test_lines}\\n\\n"
+                            f"Binding Tier: {adapter.get('resource_binding_tier', 'unknown')}\n"
+                            f"{memory_line}\n{test_lines}\n\n"
                             "Это Windows D3D12 runtime-проверка, а не подтверждение совместимости Xbox-игр."
                         )
                     else:
