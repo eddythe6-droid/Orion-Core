@@ -23,6 +23,28 @@ Machine-readable report:
 python -m orion_core --json
 ```
 
+## Desktop dashboard
+
+Launch the desktop interface on Windows:
+
+```bash
+orion-core-gui
+```
+
+Or from a source checkout:
+
+```bash
+python -m orion_core.gui
+```
+
+The dashboard includes a live event console, read-only system inventory cards,
+log saving, and JSON report export. Its current scan reports real collector
+events for OS/CPU/memory and Windows CIM/registry inventory. It does not yet
+launch the native D3D12 GPU workload test; the UI labels that limitation rather
+than displaying simulated GPU progress. The interface uses Python's built-in
+Tkinter and adds no third-party runtime dependency.
+
+
 Skip Windows-specific inventory:
 
 ```bash
