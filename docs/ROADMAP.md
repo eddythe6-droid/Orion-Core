@@ -75,6 +75,14 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Add dedicated GPU, memory, CPU, evidence, and compatibility views
 - [ ] Package a Windows desktop build and validate on physical hardware
 
+## Game-file research
+- [x] Read-only directory/file inventory with basic signature detection
+- [x] Metadata-only ZIP member listing without extraction
+- [x] Optional bounded SHA-256 hashing and JSON inspection reports
+- [ ] Parse validated PE headers and section/import metadata
+- [ ] Research Xbox XEX/STFS structures from public documentation and lawful test samples
+- [ ] Add read-only parsers for documented asset/container formats
+
 ## Later
 - [ ] Optional user-approved tests for specific software
 - [ ] Documentation for interpreting results
