@@ -78,7 +78,9 @@ def test_resource_state_tracker_validates_and_records_transitions():
     )
 
     assert tracker.state_of("texture") == ResourceState.RENDER_TARGET
-    assert tracker.history == (first, second)
+    assert tracker.history[0] == first
+    assert tracker.history[-1] == second
+    assert len(tracker.history) == 4
     assert first.resource_id == "texture"
     assert first.before == ResourceState.COPY_DEST
     assert first.after == ResourceState.SHADER_RESOURCE
