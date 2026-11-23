@@ -139,3 +139,33 @@ def test_resource_copy_smoke_fields_are_validated_and_summarized():
     adapter["resource_copy_smoke_note"] = None
     with pytest.raises(ProbeReportError, match="resource_copy_smoke_note"):
         validate_probe_report(report)
+
+
+
+def test_binding_smoke_fields_are_validated_and_summarized():
+    report = sample_report()
+    adapter = report["adapters"][0]
+    adapter.update({
+        "root_signature_smoke_test": True,
+        "resource_descriptor_heap_smoke_test": True,
+        "sampler_descriptor_heap_smoke_test": False,
+        "resource_descriptor_increment": 32,
+        "sampler_descriptor_increment": 16,
+        "binding_smoke_note": "root_signature_and_heaps_created",
+    })
+    summary = summarize_probe_report(report)["adapters"][0]
+    assert summary["root_signature_smoke_test"] is True
+    assert summary["resource_descriptor_heap_smoke_test"] is True
+    assert summary["sampler_descriptor_heap_smoke_test"] is False
+    assert summary["resource_descriptor_increment"] == 32
+    assert summary["sampler_descriptor_increment"] == 16
+    assert summary["binding_smoke_note"] == "root_signature_and_heaps_created"
+
+    adapter["resource_descriptor_increment"] = -1
+    with pytest.raises(ProbeReportError, match="resource_descriptor_increment"):
+        validate_probe_report(report)
+
+    adapter["resource_descriptor_increment"] = 32
+    adapter["root_signature_smoke_test"] = "true"
+    with pytest.raises(ProbeReportError, match="root_signature_smoke_test"):
+        validate_probe_report(report)
