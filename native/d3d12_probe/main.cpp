@@ -159,6 +159,18 @@ int main(int argc, char** argv) {
         }
         if (!software) ++hardwareDevices;
 
+        DXGI_QUERY_VIDEO_MEMORY_INFO localMemory{};
+        DXGI_QUERY_VIDEO_MEMORY_INFO nonLocalMemory{};
+        bool localMemoryAvailable = false;
+        bool nonLocalMemoryAvailable = false;
+        ComPtr<IDXGIAdapter3> adapter3;
+        if (SUCCEEDED(adapter.As(&adapter3))) {
+            localMemoryAvailable = SUCCEEDED(adapter3->QueryVideoMemoryInfo(
+                0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &localMemory));
+            nonLocalMemoryAvailable = SUCCEEDED(adapter3->QueryVideoMemoryInfo(
+                0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &nonLocalMemory));
+        }
+
         std::string featureLevel = "unknown";
         const std::array<D3D_FEATURE_LEVEL, 5> levels = {
             D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1,
