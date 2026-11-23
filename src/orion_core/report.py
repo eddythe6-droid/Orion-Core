@@ -12,7 +12,7 @@ from .windows_info import collect_windows_diagnostics
 REPORT_SCHEMA_VERSION = "1.0"
 
 
-def collect_diagnostics_report() -> dict[str, Any]:
+def collect_diagnostics_report(include_windows: bool = True) -> dict[str, Any]:
     """Collect a timestamped, read-only report with environment metadata."""
     system = collect_system_info()
     return {
@@ -27,7 +27,7 @@ def collect_diagnostics_report() -> dict[str, Any]:
             "python_implementation": system["python"]["implementation"],
         },
         "system": system,
-        "windows_diagnostics": collect_windows_diagnostics(),
+        "windows_diagnostics": collect_windows_diagnostics() if include_windows else {"supported": False, "reason": "Skipped by --basic-only"},
         "validation": {
             "hardware_runtime_tests_performed": False,
             "notes": [
