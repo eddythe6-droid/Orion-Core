@@ -70,3 +70,18 @@ def test_catalog_tracks_network_api_and_gdk_lifecycle_contracts():
     assert udp.classification == "extension"
     assert compare_support(udp, "xbox") == "documented"
     assert compare_support(udp, "windows_pc") == "not_documented_for_target"
+
+
+def test_catalog_separates_console_and_pc_package_formats():
+    records = {item.claim_id: item for item in load_platform_inventory().records}
+    shared_tooling = records["GDK-PACKAGE-001"]
+    assert shared_tooling.platform == "both"
+    assert shared_tooling.classification == "extension"
+    assert compare_support(shared_tooling, "windows_pc") == "documented"
+    assert compare_support(shared_tooling, "xbox") == "documented"
+
+    pc_only = records["GDK-PACKAGE-002"]
+    assert pc_only.platform == "windows_pc"
+    assert pc_only.classification == "pc_only"
+    assert compare_support(pc_only, "windows_pc") == "documented"
+    assert compare_support(pc_only, "xbox") == "not_documented_for_target"
