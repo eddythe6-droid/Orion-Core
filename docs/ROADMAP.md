@@ -13,7 +13,8 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] DirectX registry version indicator
 - [x] Vulkan ICD registration count
 - [ ] Validate output on supported Windows versions and NVIDIA/AMD/Intel systems
-- [ ] Add explicit DirectX feature-level and Vulkan device-capability probes
+- [x] Add native Windows D3D12 feature-level and capability probe (runtime validation pending)
+- [ ] Add explicit Vulkan device-capability probe
 - [ ] Stable JSON schema and report versioning
 
 ## Milestone 0.3 — Evidence-backed platform model
@@ -26,6 +27,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 
 ## Milestone 0.4 — Compatibility test harness
 - [x] Initial hardware-independent graphics lifetime simulator (queue/fence, residency budget, descriptor retirement)
+- [x] Resource transition state tracker (simulation only; runtime GPU validation not implied)
 - [ ] Declarative, read-only checks
 - [ ] Reproducible test results with timestamps and environment metadata
 - [ ] Exportable compatibility reports
