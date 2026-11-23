@@ -1,0 +1,23 @@
+name: Native D3D12 probe build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "native/d3d12_probe/**"
+      - ".github/workflows/d3d12-probe-build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "native/d3d12_probe/**"
+      - ".github/workflows/d3d12-probe-build.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S native/d3d12_probe -B build/d3d12-probe -A x64
+      - name: Build
+        run: cmake --build build/d3d12-probe --config Release
