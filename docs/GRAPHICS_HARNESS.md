@@ -39,3 +39,10 @@ This is intentionally not a full D3D12 barrier implementation. It does not model
 `orion_core.gpu_lifetime` adds independent named queue timelines (for example, copy, compute, and graphics) and a deferred-release queue. A resource retirement record can depend on several fence points; collection releases the simulated record only after every referenced queue has completed its required value. Unknown queues, duplicate queue names, empty dependencies, and fence points that were never submitted are rejected.
 
 This models a conservative lifetime invariant only. It does not submit D3D12 work, establish real GPU queue waits, manage command allocators, or destroy GPU resources.
+
+
+## Per-subresource transition model
+
+`SubresourceStateTracker` extends the bookkeeping model to track a separate state for each registered subresource. Callers can transition one indexed subresource or request a conservative all-subresources transition. An all-subresources transition validates every current state before changing any state, so a mismatch cannot leave a partially updated resource.
+
+This remains a CPU-only model. It does not calculate D3D12 texture subresource indices, model plane/mip/array layouts, execute barriers, or validate driver behavior.
