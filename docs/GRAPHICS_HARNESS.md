@@ -32,3 +32,10 @@ The simulator captures only selected invariants from these public PC concepts. I
 The simulator also includes `ResourceStateTracker`, a deterministic bookkeeping model for explicit per-resource transitions. It validates the caller-supplied before-state against the tracked state, records valid transitions, and rejects unknown resources, duplicate registrations, mismatched before-states, and no-op transitions.
 
 This is intentionally not a full D3D12 barrier implementation. It does not model subresources, split barriers, aliasing barriers, UAV ordering, queue ownership, implicit promotion/decay, command-list execution, or GPU memory visibility. A passing simulator test is not evidence of actual driver behavior.
+
+
+## Multi-queue lifetime model
+
+`orion_core.gpu_lifetime` adds independent named queue timelines (for example, copy, compute, and graphics) and a deferred-release queue. A resource retirement record can depend on several fence points; collection releases the simulated record only after every referenced queue has completed its required value. Unknown queues, duplicate queue names, empty dependencies, and fence points that were never submitted are rejected.
+
+This models a conservative lifetime invariant only. It does not submit D3D12 work, establish real GPU queue waits, manage command allocators, or destroy GPU resources.
