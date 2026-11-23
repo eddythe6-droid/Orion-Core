@@ -87,7 +87,9 @@ def summarize_probe_report(report: dict[str, Any]) -> dict[str, Any]:
 
 
 def _version_tuple(value: Any) -> tuple[int, ...] | None:
-    if not isinstance(value, str) or value in {"", "unknown", "not_supported"}:
+    if value == "not_supported":
+        return (-1,)
+    if not isinstance(value, str) or value in {"", "unknown"}:
         return None
     try:
         parts = tuple(int(part) for part in value.split("_"))
