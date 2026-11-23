@@ -2,28 +2,37 @@
 
 Orion-Core is an experimental, read-only Windows diagnostics and software-compatibility research toolkit.
 
-The first milestone collects basic system facts and can emit a JSON report. It does not change system settings, install drivers, execute third-party programs, or inspect personal files.
-
 ## Requirements
 
 - Python 3.10 or newer
-- Windows, Linux, or macOS for the basic system report
+- Basic system report: Windows, Linux, or macOS
+- Extended CPU/GPU and graphics-runtime inventory: Windows with PowerShell and access to the local Windows registry
 
 ## Run
-
-```bash
-python -m orion_core
-```
 
 From a source checkout:
 
 ```bash
 python -m pip install -e .
-orion-core --json
+python -m orion_core
 ```
 
-## Project status
+Machine-readable report:
 
-Early development. Hardware and graphics API inventory, structured compatibility checks, and a reproducible test harness are planned; they are not yet implemented.
+```bash
+python -m orion_core --json
+```
+
+Skip Windows-specific inventory:
+
+```bash
+python -m orion_core --basic-only --json
+```
+
+## Windows inventory scope
+
+The current Windows collector reads CPU and display-adapter properties through CIM, the DirectX registry version, and the count of registered Vulkan ICD manifest entries. These are diagnostic indicators, not a certification of game compatibility or a complete DirectX feature-level/Vulkan capability test. Missing data is reported rather than guessed.
+
+The tool is read-only: it does not change registry values, install software or drivers, run downloaded executables, or collect device serial numbers, MAC addresses, usernames, hostnames, or personal files.
 
 See [ROADMAP](docs/ROADMAP.md) and [SAFETY](docs/SAFETY.md).
