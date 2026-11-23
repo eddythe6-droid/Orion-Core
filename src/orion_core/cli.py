@@ -7,6 +7,7 @@ import json
 
 from .system_info import collect_system_info
 from .platform_catalog import load_platform_inventory
+from .capability import assess_compatibility
 from .windows_info import collect_windows_diagnostics
 
 
@@ -14,6 +15,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Collect a read-only system report.")
     parser.add_argument("--json", action="store_true", help="Print the system report as JSON.")
     parser.add_argument("--capabilities-json", action="store_true", help="Export the curated Xbox/Windows platform capability catalogue as JSON.")
+    parser.add_argument("--assess-target", choices=("windows_pc", "xbox"), help="Create an evidence-linked compatibility assessment for a target platform.")
+    parser.add_argument("--subsystem", help="Limit a capability export or assessment to one subsystem.")
     parser.add_argument(
         "--basic-only",
         action="store_true",
@@ -22,7 +25,15 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.capabilities_json:
-        print(json.dumps(load_platform_inventory().to_dict(), indent=2, ensure_ascii=False))
+        inventory = load_platform_inventory()
+        if args.subsystem:
+            inventory = inventory.for_subsystem(args.subsystem)
+        print(json.dumps(inventory.to_dict(), indent=2, ensure_ascii=False))
+        return
+
+    if args.assess_target:
+        report = assess_compatibility(load_platform_inventory(), args.assess_target, args.subsystem)
+        print(json.dumps(report, indent=2, ensure_ascii=False))
         return
 
     report = {"system": collect_system_info()}
