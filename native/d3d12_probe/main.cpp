@@ -1,4 +1,5 @@
 #include <windows.h>
+// Keep the native probe build gated by Windows CI.
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
