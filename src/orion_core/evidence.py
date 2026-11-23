@@ -33,6 +33,15 @@ class EvidenceRecord:
     notes: str | None = None
 
     def __post_init__(self) -> None:
+        allowed = {
+            "platform": {"windows_pc", "xbox", "both", "unknown"},
+            "classification": {"common", "pc_only", "xbox_only", "extension", "unknown"},
+            "status": {"confirmed_fact", "hypothesis", "unknown"},
+            "confidence": {"high", "medium", "low"},
+        }
+        for name, choices in allowed.items():
+            if getattr(self, name) not in choices:
+                raise ValueError(f"{name} must be one of: {', '.join(sorted(choices))}")
         for name in ("claim_id", "subsystem", "claim"):
             if not getattr(self, name).strip():
                 raise ValueError(f"{name} must not be empty")
