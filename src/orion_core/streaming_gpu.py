@@ -58,7 +58,7 @@ class FenceAwareStreamingEngine:
                 resource.status = ResourceStatus.RESIDENT
                 resource.last_used_tick = self.streaming.tick
                 self.streaming.events.append(
-                    __import__("orion_core.resource_streaming", fromlist=["StreamingEvent"]).StreamingEvent(
+                    StreamingEvent(
                         self.streaming.tick, "upload_completed", resource_id,
                         f"{pending.fence.queue}:{pending.fence.value}"
                     )
