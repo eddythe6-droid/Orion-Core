@@ -40,3 +40,18 @@ def test_catalog_tracks_shared_input_save_and_file_apis():
         assert record.platform == "both"
         assert compare_support(record, "windows_pc") == "documented"
         assert compare_support(record, "xbox") == "documented"
+
+
+def test_catalog_tracks_audio_api_extensions_and_xma_boundary():
+    records = {item.claim_id: item for item in load_platform_inventory().records}
+    audio = records["GDK-AUDIO-001"]
+    assert audio.subsystem == "audio"
+    assert audio.platform == "both"
+    assert audio.classification == "extension"
+    assert compare_support(audio, "windows_pc") == "documented"
+    assert compare_support(audio, "xbox") == "documented"
+
+    xma = records["GDK-AUDIO-XMA-001"]
+    assert xma.platform == "xbox"
+    assert compare_support(xma, "xbox") == "documented"
+    assert compare_support(xma, "windows_pc") == "not_documented_for_target"
