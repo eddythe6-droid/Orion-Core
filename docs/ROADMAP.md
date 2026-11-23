@@ -79,7 +79,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Read-only directory/file inventory with basic signature detection
 - [x] Metadata-only ZIP member listing without extraction
 - [x] Optional bounded SHA-256 hashing and JSON inspection reports
-- [ ] Parse validated PE headers and section/import metadata
+- [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser
 - [ ] Research Xbox XEX/STFS structures from public documentation and lawful test samples
 - [ ] Add read-only parsers for documented asset/container formats
 
