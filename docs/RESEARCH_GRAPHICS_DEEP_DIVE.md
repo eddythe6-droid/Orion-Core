@@ -88,3 +88,16 @@ The Windows-only C++ probe now records additional public D3D12 queries per succe
 - Query availability is emitted separately. Values are JSON `null` when the query fails; they are not silently converted to `false` or zero.
 
 These are adapter/runtime observations, not a prediction of game compatibility. A format support bitmask must be decoded against the Windows SDK definitions used to build the probe. The probe does not yet test ray tracing, mesh shaders, sampler feedback, actual shader compilation, presentation, or sustained GPU workloads. CI compilation is not a substitute for running the executable on physical Windows hardware.
+
+
+### Advanced optional graphics features (native query coverage)
+
+The native Windows probe also queries `D3D12_FEATURE_D3D12_OPTIONS5` and `D3D12_FEATURE_D3D12_OPTIONS7`:
+
+- Ray tracing tier (Options5).
+- Mesh shader tier (Options7).
+- Sampler feedback tier (Options7).
+
+Each Options structure has its own `*_query_available` field. A tier is emitted as `unknown` if the corresponding query is unavailable or the returned enum is not recognized by the SDK used to compile the probe. `not_supported` is emitted only when the runtime explicitly returns the documented not-supported enum. This distinction prevents an older runtime from being mistaken for hardware that definitively lacks a feature.
+
+These queries report D3D12 runtime/driver capability exposure. They do not test performance, validate a complete rendering path, prove that a particular game uses the feature, or establish compatibility with Xbox D3D12.x.
