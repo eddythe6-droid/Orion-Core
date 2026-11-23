@@ -7,6 +7,7 @@ from .gpu_lifetime import DeferredReleaseQueue, QueueSet
 from .graphics_harness import FencePoint, ResourceState, ResourceStateTracker
 from .resource_streaming import ResourcePriority, ResourceStatus
 from .streaming_gpu import FenceAwareStreamingEngine
+from .queue_sync import QueueSynchronizer
 
 
 @dataclass(slots=True)
@@ -35,6 +36,7 @@ class GPUResourceManager:
         self.queues.add("compute")
         self.states = ResourceStateTracker()
         self.deferred = DeferredReleaseQueue(self.queues)
+        self.synchronizer = QueueSynchronizer(self.queues)
         self.resources: dict[str, ManagedResource] = {}
 
     def request(self, resource_id: str, size_bytes: int,
@@ -61,14 +63,19 @@ class GPUResourceManager:
         before = self.states.state_of(resource_id)
         return self.states.transition(resource_id, before, after)
 
-    def submit_use(self, resource_id: str, queue_name: str) -> FencePoint:
+    def submit_use(self, resource_id: str, queue_name: str, *, wait_for: tuple[str, ...] = ()) -> FencePoint:
         # Validate the queue argument before resource readiness to keep API errors deterministic.
         self.queues.get(queue_name)
         resource = self._active(resource_id)
         self._require_resident(resource_id)
         if queue_name == "copy":
             raise ValueError("copy work must use submit_next_upload")
-        point = self.queues.submit(queue_name)
+        for producer_queue in wait_for:
+            producer = resource.last_use.get(producer_queue)
+            if producer is None:
+                raise ValueError(f"resource has no submitted use on producer queue: {producer_queue}")
+            self.synchronizer.wait(queue_name, producer)
+        point = self.synchronizer.submit(queue_name)
         resource.last_use[queue_name] = point
         self.streaming.touch(resource_id)
         return point
@@ -77,7 +84,7 @@ class GPUResourceManager:
         if queue_name == "copy":
             self.complete_copy(value)
         else:
-            self.queues.complete(queue_name, value)
+            self.synchronizer.complete(queue_name, value)
 
     def retire(self, resource_id: str) -> None:
         resource = self._active(resource_id)
@@ -120,6 +127,7 @@ class GPUResourceManager:
             },
             "streaming": self.streaming.snapshot(),
             "deferred_release": self.deferred.snapshot(),
+            "queue_synchronization": self.synchronizer.snapshot(),
             "simulation_only": True,
             "gpu_commands_executed": False,
             "gpu_resources_created_or_destroyed": False,
