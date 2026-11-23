@@ -323,7 +323,7 @@ int main(int argc, char** argv) {
              << ",\"current_usage_bytes\":" << (nonLocalMemoryAvailable ? std::to_string(nonLocalMemory.CurrentUsage) : "null")
              << ",\"available_for_reservation_bytes\":" << (nonLocalMemoryAvailable ? std::to_string(nonLocalMemory.AvailableForReservation) : "null")
              << "}}"
-             << ",\"options5_query_available\":"" << (options5Available ? "true" : "false")
+             << ",\"options5_query_available\":" << (options5Available ? "true" : "false")
              << ",\"raytracing_tier\":\"" << (options5Available ? raytracingTier : "unknown") << "\""
              << ",\"options7_query_available\":" << (options7Available ? "true" : "false")
              << ",\"mesh_shader_tier\":\"" << (options7Available ? meshShaderTier : "unknown") << "\""
