@@ -195,6 +195,38 @@ int main(int argc, char** argv) {
         const bool rgba8FormatQueryAvailable = SUCCEEDED(device->CheckFeatureSupport(
             D3D12_FEATURE_FORMAT_SUPPORT, &rgba8Support, sizeof(rgba8Support)));
 
+        D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5{};
+        const bool options5Available = SUCCEEDED(device->CheckFeatureSupport(
+            D3D12_FEATURE_D3D12_OPTIONS5, &options5, sizeof(options5)));
+        std::string raytracingTier = "unknown";
+        if (options5Available) {
+            switch (options5.RaytracingTier) {
+            case D3D12_RAYTRACING_TIER_NOT_SUPPORTED: raytracingTier = "not_supported"; break;
+            case D3D12_RAYTRACING_TIER_1_0: raytracingTier = "1_0"; break;
+            case D3D12_RAYTRACING_TIER_1_1: raytracingTier = "1_1"; break;
+            default: break;
+            }
+        }
+
+        D3D12_FEATURE_DATA_D3D12_OPTIONS7 options7{};
+        const bool options7Available = SUCCEEDED(device->CheckFeatureSupport(
+            D3D12_FEATURE_D3D12_OPTIONS7, &options7, sizeof(options7)));
+        std::string meshShaderTier = "unknown";
+        std::string samplerFeedbackTier = "unknown";
+        if (options7Available) {
+            switch (options7.MeshShaderTier) {
+            case D3D12_MESH_SHADER_TIER_NOT_SUPPORTED: meshShaderTier = "not_supported"; break;
+            case D3D12_MESH_SHADER_TIER_1: meshShaderTier = "1"; break;
+            default: break;
+            }
+            switch (options7.SamplerFeedbackTier) {
+            case D3D12_SAMPLER_FEEDBACK_TIER_NOT_SUPPORTED: samplerFeedbackTier = "not_supported"; break;
+            case D3D12_SAMPLER_FEEDBACK_TIER_0_9: samplerFeedbackTier = "0_9"; break;
+            case D3D12_SAMPLER_FEEDBACK_TIER_1_0: samplerFeedbackTier = "1_0"; break;
+            default: break;
+            }
+        }
+
         bool queueFenceTest = false;
         std::string queueError;
         ComPtr<ID3D12CommandQueue> queue;
@@ -237,6 +269,11 @@ int main(int argc, char** argv) {
              << ",\"rgba8_format_query_available\":" << (rgba8FormatQueryAvailable ? "true" : "false")
              << ",\"rgba8_support1\":" << (rgba8FormatQueryAvailable ? std::to_string(rgba8Support.Support1) : "null")
              << ",\"rgba8_support2\":" << (rgba8FormatQueryAvailable ? std::to_string(rgba8Support.Support2) : "null")
+             << ",\"options5_query_available\":" << (options5Available ? "true" : "false")
+             << ",\"raytracing_tier\":\"" << (options5Available ? raytracingTier : "unknown") << "\""
+             << ",\"options7_query_available\":" << (options7Available ? "true" : "false")
+             << ",\"mesh_shader_tier\":\"" << (options7Available ? meshShaderTier : "unknown") << "\""
+             << ",\"sampler_feedback_tier\":\"" << (options7Available ? samplerFeedbackTier : "unknown") << "\""
              << ",\"direct_queue_fence_test\":" << (queueFenceTest ? "true" : "false")
              << ",\"queue_test_note\":\"" << json_escape(queueError) << "\"}";
         adapterReports.push_back(item.str());
