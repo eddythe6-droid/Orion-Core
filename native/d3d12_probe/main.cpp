@@ -242,6 +242,78 @@ static ResourceSmokeResult run_resource_copy_smoke_test(
     return result;
 }
 
+
+struct BindingSmokeResult {
+    bool rootSignatureCreated = false;
+    bool resourceHeapCreated = false;
+    bool samplerHeapCreated = false;
+    UINT resourceDescriptorIncrement = 0;
+    UINT samplerDescriptorIncrement = 0;
+    std::string note = "not_run";
+};
+
+static BindingSmokeResult run_binding_smoke_test(ID3D12Device* device) {
+    BindingSmokeResult result;
+    D3D12_ROOT_SIGNATURE_DESC rootDesc{};
+    rootDesc.NumParameters = 0;
+    rootDesc.pParameters = nullptr;
+    rootDesc.NumStaticSamplers = 0;
+    rootDesc.pStaticSamplers = nullptr;
+    rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+    ComPtr<ID3DBlob> serialized;
+    ComPtr<ID3DBlob> errors;
+    HRESULT hr = D3D12SerializeRootSignature(
+        &rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &serialized, &errors);
+    if (FAILED(hr)) {
+        result.note = "root_signature_serialize:" + hr_string(hr);
+        return result;
+    }
+    ComPtr<ID3D12RootSignature> rootSignature;
+    hr = device->CreateRootSignature(0, serialized->GetBufferPointer(),
+        serialized->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+    if (FAILED(hr)) {
+        result.note = "root_signature_create:" + hr_string(hr);
+        return result;
+    }
+    result.rootSignatureCreated = true;
+
+    D3D12_DESCRIPTOR_HEAP_DESC resourceHeapDesc{};
+    resourceHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    resourceHeapDesc.NumDescriptors = 16;
+    resourceHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    hr = device->CreateDescriptorHeap(&resourceHeapDesc, IID_PPV_ARGS(&ComPtr<ID3D12DescriptorHeap>()));
+    if (SUCCEEDED(hr)) {
+        ComPtr<ID3D12DescriptorHeap> heap;
+        hr = device->CreateDescriptorHeap(&resourceHeapDesc, IID_PPV_ARGS(&heap));
+        if (SUCCEEDED(hr)) {
+            result.resourceHeapCreated = true;
+            result.resourceDescriptorIncrement =
+                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        }
+    }
+    if (FAILED(hr)) {
+        result.note = "resource_descriptor_heap:" + hr_string(hr);
+        return result;
+    }
+
+    D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc{};
+    samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+    samplerHeapDesc.NumDescriptors = 8;
+    samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ComPtr<ID3D12DescriptorHeap> samplerHeap;
+    hr = device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&samplerHeap));
+    if (FAILED(hr)) {
+        result.note = "sampler_descriptor_heap:" + hr_string(hr);
+        return result;
+    }
+    result.samplerHeapCreated = true;
+    result.samplerDescriptorIncrement =
+        device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+    result.note = "empty_root_signature_and_shader_visible_descriptor_heaps_created";
+    return result;
+}
+
 int main(int argc, char** argv) {
     bool includeSoftware = false;
     for (int i = 1; i < argc; ++i) {
@@ -429,7 +501,7 @@ int main(int argc, char** argv) {
             } else queueError = "create_fence_failed:" + hr_string(hr);
         } else queueError = "create_command_queue_failed:" + hr_string(hr);
 
-        const ResourceSmokeResult resourceSmoke = queue ? run_resource_copy_smoke_test(device.Get(), queue.Get()) : ResourceSmokeResult{false, "queue_unavailable"};
+        const ResourceSmokeResult resourceSmoke = queue ? run_resource_copy_smoke_test(device.Get(), queue.Get()) : ResourceSmokeResult{false, "queue_unavailable"};\n        const BindingSmokeResult bindingSmoke = run_binding_smoke_test(device.Get());
         std::ostringstream item;
         item << "{\"name\":\"" << json_escape(narrow(desc.Description))
              << "\",\"vendor_id\":" << desc.VendorId
@@ -474,7 +546,7 @@ int main(int argc, char** argv) {
              << ",\"direct_queue_fence_test\":" << (queueFenceTest ? "true" : "false")
              << ",\"queue_test_note\":\"" << json_escape(queueError) << "\""
              << ",\"resource_copy_smoke_test\":" << (resourceSmoke.success ? "true" : "false")
-             << ",\"resource_copy_smoke_note\":\"" << json_escape(resourceSmoke.note) << "\"}";
+             << ",\"resource_copy_smoke_note\":\"" << json_escape(resourceSmoke.note) << "\""\n             << ",\"root_signature_smoke_test\":" << (bindingSmoke.rootSignatureCreated ? "true" : "false")\n             << ",\"resource_descriptor_heap_smoke_test\":" << (bindingSmoke.resourceHeapCreated ? "true" : "false")\n             << ",\"sampler_descriptor_heap_smoke_test\":" << (bindingSmoke.samplerHeapCreated ? "true" : "false")\n             << ",\"resource_descriptor_increment\":" << bindingSmoke.resourceDescriptorIncrement\n             << ",\"sampler_descriptor_increment\":" << bindingSmoke.samplerDescriptorIncrement\n             << ",\"binding_smoke_note\":\"" << json_escape(bindingSmoke.note) << "\"}";
         adapterReports.push_back(item.str());
     }
 
