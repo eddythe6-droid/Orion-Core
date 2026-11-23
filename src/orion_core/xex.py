@@ -11,6 +11,7 @@ from typing import Any
 MAGIC = b"XEX2"
 FIXED_HEADER_SIZE = 0x18
 MAX_OPTIONAL_HEADERS = 4096
+MAX_METADATA_READ = 16 * 1024 * 1024
 
 class XEXError(ValueError):
     """Malformed or unsupported XEX2 header."""
@@ -24,7 +25,7 @@ def inspect_xex(path: str | Path) -> dict[str, Any]:
     source = Path(path)
     try:
         with source.open("rb") as stream:
-            data = stream.read()
+            data = stream.read(MAX_METADATA_READ)
     except OSError as exc:
         raise XEXError(f"cannot read XEX: {type(exc).__name__}: {exc}") from exc
     if len(data) < FIXED_HEADER_SIZE or data[:4] != MAGIC:
