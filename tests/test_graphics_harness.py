@@ -63,3 +63,48 @@ def test_descriptor_allocator_rejects_invalid_ranges():
     with pytest.raises(ValueError):
         allocator.retire(type("Range", (), {"start": 0, "count": 1})(),
                          type("Fence", (), {"queue": "q", "value": 1})())
+
+
+def test_resource_state_tracker_validates_and_records_transitions():
+    from orion_core.graphics_harness import ResourceState, ResourceStateTracker
+
+    tracker = ResourceStateTracker()
+    tracker.register("texture", ResourceState.COPY_DEST)
+    first = tracker.transition(
+        "texture", ResourceState.COPY_DEST, ResourceState.SHADER_RESOURCE
+    )
+    second = tracker.transition(
+        "texture", ResourceState.SHADER_RESOURCE, ResourceState.RENDER_TARGET
+    )
+
+    assert tracker.state_of("texture") == ResourceState.RENDER_TARGET
+    assert tracker.history == (first, second)
+    assert first.resource_id == "texture"
+    assert first.before == ResourceState.COPY_DEST
+    assert first.after == ResourceState.SHADER_RESOURCE
+
+
+def test_resource_state_tracker_rejects_wrong_before_state_and_noop():
+    from orion_core.graphics_harness import ResourceState, ResourceStateTracker
+
+    tracker = ResourceStateTracker()
+    tracker.register("buffer", ResourceState.COMMON)
+    with pytest.raises(ValueError, match="before-state mismatch"):
+        tracker.transition("buffer", ResourceState.COPY_DEST, ResourceState.COPY_SOURCE)
+    with pytest.raises(ValueError, match="no-op"):
+        tracker.transition("buffer", ResourceState.COMMON, ResourceState.COMMON)
+    assert tracker.state_of("buffer") == ResourceState.COMMON
+    assert tracker.history == ()
+
+
+def test_resource_state_tracker_rejects_unknown_and_duplicate_resources():
+    from orion_core.graphics_harness import ResourceState, ResourceStateTracker
+
+    tracker = ResourceStateTracker()
+    with pytest.raises(KeyError, match="unknown resource"):
+        tracker.state_of("missing")
+    with pytest.raises(ValueError, match="unique"):
+        tracker.register("", ResourceState.COMMON)
+    tracker.register("buffer", ResourceState.COMMON)
+    with pytest.raises(ValueError, match="unique"):
+        tracker.register("buffer", ResourceState.COPY_DEST)
