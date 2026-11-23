@@ -69,7 +69,7 @@ def test_catalog_tracks_network_api_and_gdk_lifecycle_contracts():
     assert udp.platform == "xbox"
     assert udp.classification == "extension"
     assert compare_support(udp, "xbox") == "documented"
-    assert compare_support(udp, "windows_pc") == "not_documented_for_target"
+    assert compare_support(udp, "windows_pc") == "unknown"
 
 
 def test_catalog_separates_console_and_pc_package_formats():
