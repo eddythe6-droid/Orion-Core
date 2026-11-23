@@ -65,6 +65,14 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Native resource-binding validation smoke test with root signature, CBV descriptor heap, shader consumption, and pixel readback (runtime validation pending)
 - [x] Native root-signature serialization and graphics PSO creation smoke tests (runtime validation pending)
 
+## Desktop application
+- [x] Initial Tkinter desktop dashboard with system inventory cards
+- [x] Live event-driven console with severity colors, auto-scroll, and clear action
+- [x] Save console log and export diagnostic JSON
+- [ ] Integrate native D3D12 probe execution and stream its real output into the console
+- [ ] Add dedicated GPU, memory, CPU, evidence, and compatibility views
+- [ ] Package a Windows desktop build and validate on physical hardware
+
 ## Later
 - [ ] Optional user-approved tests for specific software
 - [ ] Documentation for interpreting results
