@@ -58,3 +58,14 @@ python -m orion_core --gpu-probe-json .\\gpu-report.json
 ```
 
 The importer checks the report schema and required adapter fields, then emits a comparison-friendly summary. It preserves unknown optional feature values and explicitly states that a valid hardware probe report does not establish game compatibility. The importer does not execute the native probe itself.
+
+
+## Compare two GPU reports
+
+Capture one JSON report per adapter/PC, then run:
+
+```powershell
+python -m orion_core --compare-gpus .\\gpu-a.json .\\gpu-b.json
+```
+
+Each input must contain exactly one hardware D3D12 adapter. The comparison orders known feature/tier values, compares reported boolean capabilities, and reports raw RGBA8 support-mask bit differences. Explicit `not_supported` is treated as a known lower tier; `unknown` remains unknown. The masks are not decoded into usage claims, and no performance or game-compatibility conclusion is produced.
