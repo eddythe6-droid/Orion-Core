@@ -101,3 +101,16 @@ The native Windows probe also queries `D3D12_FEATURE_D3D12_OPTIONS5` and `D3D12_
 Each Options structure has its own `*_query_available` field. A tier is emitted as `unknown` if the corresponding query is unavailable or the returned enum is not recognized by the SDK used to compile the probe. `not_supported` is emitted only when the runtime explicitly returns the documented not-supported enum. This distinction prevents an older runtime from being mistaken for hardware that definitively lacks a feature.
 
 These queries report D3D12 runtime/driver capability exposure. They do not test performance, validate a complete rendering path, prove that a particular game uses the feature, or establish compatibility with Xbox D3D12.x.
+
+
+### Representative texture and render-target format queries (implemented)
+
+The native probe now queries D3D12_FEATURE_FORMAT_SUPPORT for a small representative set:
+
+- R8G8B8A8_UNORM and B8G8R8A8_UNORM — common 8-bit color formats.
+- R16G16B16A16_FLOAT — higher-precision color/HDR-style data format.
+- R32_FLOAT — scalar floating-point data.
+- D32_FLOAT — depth format.
+- BC1_UNORM and BC7_UNORM — block-compressed texture formats.
+
+For each format the JSON report records query_available, support1, and support2. The importer validates the record shape, rejects negative/non-integer masks, and preserves null masks when a query is unavailable. These raw masks must be decoded using the matching Windows SDK definitions before making a specific usage claim; they are not themselves a verdict that a texture can be used in every pipeline role.
