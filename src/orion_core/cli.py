@@ -11,6 +11,7 @@ from .capability import assess_compatibility
 from .windows_info import collect_windows_diagnostics
 from .report import collect_diagnostics_report
 from .gpu_probe import load_probe_report, summarize_probe_report, compare_gpu_adapters, summarize_gpu_memory
+from .history import HistoryStore
 
 
 def main() -> None:
@@ -22,12 +23,37 @@ def main() -> None:
     parser.add_argument("--capabilities-json", action="store_true", help="Export the curated Xbox/Windows platform capability catalogue as JSON.")
     parser.add_argument("--assess-target", choices=("windows_pc", "xbox"), help="Create an evidence-linked compatibility assessment for a target platform.")
     parser.add_argument("--subsystem", help="Limit a capability export or assessment to one subsystem.")
+    parser.add_argument("--history-dir", help="Override the diagnostic history directory.")
+    parser.add_argument("--history-list", action="store_true", help="List saved diagnostic history records.")
+    parser.add_argument("--history-show", metavar="RECORD_ID", help="Print a saved history record as JSON.")
+    parser.add_argument("--history-save-json", metavar="REPORT_JSON", help="Validate a JSON object and save it to history.")
+    parser.add_argument("--history-kind", default="imported_report", help="Report kind label used with --history-save-json.")
     parser.add_argument(
         "--basic-only",
         action="store_true",
         help="Skip Windows-specific hardware and graphics inventory.",
     )
     args = parser.parse_args()
+
+    if args.history_list or args.history_show or args.history_save_json:
+        store = HistoryStore(args.history_dir)
+        if args.history_list:
+            print(json.dumps(store.list_reports(), indent=2, ensure_ascii=False))
+            return
+        if args.history_show:
+            print(json.dumps(store.load_report(args.history_show), indent=2, ensure_ascii=False))
+            return
+        try:
+            with open(args.history_save_json, "r", encoding="utf-8-sig") as stream:
+                imported = json.load(stream)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            parser.error(f"cannot read history input: {type(exc).__name__}: {exc}")
+        if not isinstance(imported, dict):
+            parser.error("--history-save-json requires a JSON object")
+        record = store.add_report(imported, kind=args.history_kind)
+        print(json.dumps({"saved": True, "id": record["id"], "created_at": record["created_at"],
+                          "kind": record["kind"]}, indent=2, ensure_ascii=False))
+        return
 
     if args.gpu_probe_json:
         report = load_probe_report(args.gpu_probe_json)
