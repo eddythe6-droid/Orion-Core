@@ -169,3 +169,25 @@ def test_binding_smoke_fields_are_validated_and_summarized():
     adapter["root_signature_smoke_test"] = "true"
     with pytest.raises(ProbeReportError, match="root_signature_smoke_test"):
         validate_probe_report(report)
+
+
+def test_native_render_smoke_fields_are_validated_and_summarized():
+    report = sample_report()
+    adapter = report["adapters"][0]
+    adapter.update({
+        "render_smoke_test": True,
+        "render_shader_compile": True,
+        "render_root_signature": True,
+        "render_pipeline_state": True,
+        "render_draw_executed": True,
+        "render_smoke_note": "hlsl_pso_draw_readback_pixel_verified",
+    })
+    summary = summarize_probe_report(report)["adapters"][0]
+    assert summary["render_smoke_test"] is True
+    assert summary["render_pipeline_state"] is True
+    assert summary["render_draw_executed"] is True
+    assert summary["render_smoke_note"] == "hlsl_pso_draw_readback_pixel_verified"
+
+    adapter["render_draw_executed"] = "yes"
+    with pytest.raises(ProbeReportError, match="render_draw_executed"):
+        validate_probe_report(report)
