@@ -68,3 +68,24 @@ def test_snapshot_exposes_simulation_boundary():
     assert data["simulation_only"] is True
     assert data["gpu_commands_executed"] is False
     assert data["gpu_resources_created_or_destroyed"] is False
+
+
+
+def test_manager_integrates_explicit_cross_queue_waits():
+    manager = GPUResourceManager(256)
+    _resident(manager)
+    graphics = manager.submit_use("texture", "graphics")
+    compute = manager.submit_use("texture", "compute", wait_for=("graphics",))
+    with pytest.raises(RuntimeError, match="waiting for producer"):
+        manager.complete_queue("compute", compute.value)
+    manager.complete_queue("graphics", graphics.value)
+    manager.complete_queue("compute", compute.value)
+    snapshot = manager.snapshot()
+    assert snapshot["queue_synchronization"]["gpu_queue_waits_issued"] is False
+
+
+def test_manager_rejects_wait_for_queue_without_resource_use():
+    manager = GPUResourceManager(128)
+    _resident(manager)
+    with pytest.raises(ValueError, match="no submitted use"):
+        manager.submit_use("texture", "compute", wait_for=("graphics",))
