@@ -76,3 +76,24 @@ def test_enforces_entry_limit(tmp_path):
     make_xiso(image)
     with pytest.raises(XDVDFSError, match="entry limit"):
         inspect_xdvdfs(image, max_entries=1)
+
+
+@pytest.mark.parametrize(
+    ("layout", "base"),
+    [("XGD2", 0x0FD90000), ("XGD3", 0x02080000), ("XGD1", 0x18300000)],
+)
+def test_detects_full_disc_partition_offsets(tmp_path, layout, base):
+    image = tmp_path / f"{layout.lower()}.iso"
+    with image.open("wb") as stream:
+        stream.truncate(base + 45 * 2048)
+        descriptor = bytearray(2048)
+        descriptor[:20] = MAGIC
+        struct.pack_into("<IIQ", descriptor, 0x14, 0, 0, 987654321)
+        descriptor[0x7EC:0x800] = MAGIC
+        stream.seek(base + 32 * 2048)
+        stream.write(descriptor)
+
+    report = inspect_xdvdfs(image)
+    assert report["disc_layout"] == layout
+    assert report["volume_base_offset"] == base
+    assert report["descriptor_sector"] == 32
