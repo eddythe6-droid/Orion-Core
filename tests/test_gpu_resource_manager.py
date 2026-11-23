@@ -119,3 +119,17 @@ def test_invalid_resource_access_mode_is_rejected():
     _resident(manager)
     with pytest.raises(ValueError, match="access must be"):
         manager.submit_use("texture", "graphics", access="execute")
+
+
+def test_manager_exposes_shared_fence_aware_descriptor_heap():
+    manager = GPUResourceManager(128)
+    descriptor_range = manager.descriptors.allocate("texture-view", 4)
+    graphics = manager.queues.submit("graphics")
+    compute = manager.queues.submit("compute")
+    manager.descriptors.retire("texture-view", (graphics, compute))
+    assert manager.descriptors.collect() == []
+    manager.complete_queue("graphics", graphics.value)
+    assert manager.descriptors.collect() == []
+    manager.complete_queue("compute", compute.value)
+    assert manager.descriptors.collect() == [descriptor_range]
+    assert manager.snapshot()["descriptor_heap"]["native_descriptor_heap_created"] is False
