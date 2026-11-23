@@ -49,3 +49,32 @@ def test_report_is_saved_as_json(tmp_path):
     report = inspect_game_path(source)
     output = save_inspection_report(report, tmp_path / "out" / "report.json")
     assert json.loads(output.read_text(encoding="utf-8"))["tool"] == "orion_game_inspector"
+
+
+def test_game_inspector_recognizes_iso9660_images(tmp_path):
+    import struct
+
+    def both16(value):
+        return struct.pack("<H", value) + struct.pack(">H", value)
+
+    def both32(value):
+        return struct.pack("<I", value) + struct.pack(">I", value)
+
+    image = bytearray(22 * 2048)
+    pvd = memoryview(image)[16 * 2048:17 * 2048]
+    pvd[0:7] = b"\x01CD001\x01"
+    pvd[80:88] = both32(22)
+    pvd[128:132] = both16(2048)
+    record = bytearray(34)
+    record[0] = 34
+    record[2:10] = both32(20)
+    record[10:18] = both32(2048)
+    record[25] = 2
+    record[28:32] = both16(1)
+    record[32] = 1
+    record[33] = 0
+    pvd[156:190] = record
+    (tmp_path / "sample.iso").write_bytes(image)
+    report = inspect_game_path(tmp_path / "sample.iso")
+    assert report["source_kind"] == "iso9660"
+    assert report["iso9660"]["format"] == "ISO9660"
