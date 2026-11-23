@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .graphics_harness import FencePoint, QueueTimeline
-from .resource_streaming import ResourcePriority, ResourceStatus, ResourceStreamingEngine, StreamResource
+from .resource_streaming import (\n    ResourcePriority, ResourceStatus, ResourceStreamingEngine,\n    StreamResource, StreamingEvent,\n)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +42,7 @@ class FenceAwareStreamingEngine:
         pending = PendingUpload(resource.resource_id, fence)
         self.pending[resource.resource_id] = pending
         self.streaming.events.append(
-            __import__("orion_core.resource_streaming", fromlist=["StreamingEvent"]).StreamingEvent(
+            StreamingEvent(
                 self.streaming.tick, "upload_submitted", resource.resource_id,
                 f"{fence.queue}:{fence.value}"
             )
