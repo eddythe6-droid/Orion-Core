@@ -39,6 +39,16 @@ def main() -> None:
         print(json.dumps(summarize_gpu_memory(report), indent=2, ensure_ascii=False))
         return
 
+    if args.compare_gpus:
+        left_report = load_probe_report(args.compare_gpus[0])
+        right_report = load_probe_report(args.compare_gpus[1])
+        left_adapters = [a for a in left_report["adapters"] if a["d3d12_device"] and not a["software"]]
+        right_adapters = [a for a in right_report["adapters"] if a["d3d12_device"] and not a["software"]]
+        if len(left_adapters) != 1 or len(right_adapters) != 1:
+            parser.error("--compare-gpus requires exactly one hardware D3D12 adapter in each report")
+        comparison = compare_gpu_adapters(left_adapters[0], right_adapters[0])
+        print(json.dumps(comparison, indent=2, ensure_ascii=False))
+        return
     if args.capabilities_json:
         inventory = load_platform_inventory()
         if args.subsystem:
