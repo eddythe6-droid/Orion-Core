@@ -63,3 +63,17 @@ def test_pc_only_claim_is_not_promoted_to_xbox_support():
 def test_invalid_date_is_rejected():
     with pytest.raises(ValueError, match="ISO date"):
         make_record(checked_on="yesterday")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("platform", "console"),
+        ("classification", "mostly_compatible"),
+        ("status", "verified"),
+        ("confidence", "certain"),
+    ],
+)
+def test_rejects_unknown_enum_values(field, value):
+    with pytest.raises(ValueError, match=field):
+        make_record(**{field: value})
