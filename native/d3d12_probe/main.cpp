@@ -172,6 +172,29 @@ int main(int argc, char** argv) {
             }
         }
 
+        bool waveOps = false;
+        UINT waveLaneMin = 0;
+        UINT waveLaneMax = 0;
+        UINT totalLaneCount = 0;
+        bool int64ShaderOps = false;
+        bool expandedComputeStates = false;
+        D3D12_FEATURE_DATA_D3D12_OPTIONS1 options1{};
+        const bool options1Available = SUCCEEDED(device->CheckFeatureSupport(
+            D3D12_FEATURE_D3D12_OPTIONS1, &options1, sizeof(options1)));
+        if (options1Available) {
+            waveOps = options1.WaveOps != FALSE;
+            waveLaneMin = options1.WaveLaneCountMin;
+            waveLaneMax = options1.WaveLaneCountMax;
+            totalLaneCount = options1.TotalLaneCount;
+            int64ShaderOps = options1.Int64ShaderOps != FALSE;
+            expandedComputeStates = options1.ExpandedComputeResourceStates != FALSE;
+        }
+
+        D3D12_FEATURE_DATA_FORMAT_SUPPORT rgba8Support{};
+        rgba8Support.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        const bool rgba8FormatQueryAvailable = SUCCEEDED(device->CheckFeatureSupport(
+            D3D12_FEATURE_FORMAT_SUPPORT, &rgba8Support, sizeof(rgba8Support)));
+
         bool queueFenceTest = false;
         std::string queueError;
         ComPtr<ID3D12CommandQueue> queue;
@@ -204,6 +227,16 @@ int main(int argc, char** argv) {
              << ",\"feature_level\":\"" << featureLevel << "\""
              << ",\"shader_model\":\"" << shaderModel << "\""
              << ",\"resource_binding_tier\":\"" << bindingTier << "\""
+             << ",\"options1_query_available\":" << (options1Available ? "true" : "false")
+             << ",\"wave_ops\":" << (options1Available ? (waveOps ? "true" : "false") : "null")
+             << ",\"wave_lane_count_min\":" << (options1Available ? std::to_string(waveLaneMin) : "null")
+             << ",\"wave_lane_count_max\":" << (options1Available ? std::to_string(waveLaneMax) : "null")
+             << ",\"total_lane_count\":" << (options1Available ? std::to_string(totalLaneCount) : "null")
+             << ",\"int64_shader_ops\":" << (options1Available ? (int64ShaderOps ? "true" : "false") : "null")
+             << ",\"expanded_compute_resource_states\":" << (options1Available ? (expandedComputeStates ? "true" : "false") : "null")
+             << ",\"rgba8_format_query_available\":" << (rgba8FormatQueryAvailable ? "true" : "false")
+             << ",\"rgba8_support1\":" << (rgba8FormatQueryAvailable ? std::to_string(rgba8Support.Support1) : "null")
+             << ",\"rgba8_support2\":" << (rgba8FormatQueryAvailable ? std::to_string(rgba8Support.Support2) : "null")
              << ",\"direct_queue_fence_test\":" << (queueFenceTest ? "true" : "false")
              << ",\"queue_test_note\":\"" << json_escape(queueError) << "\"}";
         adapterReports.push_back(item.str());
