@@ -15,6 +15,7 @@ test = ["pytest>=8"]
 
 [project.scripts]
 orion-core = "orion_core.cli:main"
+orion-core-gui = "orion_core.gui:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
