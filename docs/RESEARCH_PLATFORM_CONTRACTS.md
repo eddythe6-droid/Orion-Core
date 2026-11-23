@@ -41,9 +41,9 @@ Represent each discovered dependency as a claim with:
 
 ## Initial work queue
 
-- [ ] Build a machine-readable schema for platform claims and evidence.
-- [ ] Add a capability comparison model where missing evidence remains `unknown`.
-- [ ] Add test fixtures for common, PC-only, Xbox-only and unknown claims.
+- [x] Build a machine-readable schema for platform claims and evidence.
+- [x] Add a capability comparison model where missing evidence remains `unknown`.
+- [x] Add test fixtures for common, PC-only, Xbox-only and unknown claims; reject invalid enum values at runtime.
 - [ ] Research file/package lifecycle, save data, input, audio and graphics independently.
 - [ ] Do not infer GTA VI usage from platform documentation alone.
 
