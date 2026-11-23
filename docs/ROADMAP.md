@@ -44,6 +44,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Integrate explicit queue dependencies into the GPU resource manager (simulation only)
 - [x] Fence-aware descriptor heap range allocator with multi-queue retirement (simulation only)
 - [x] Integrate descriptor heap lifetime into GPU resource manager snapshot
+- [x] Resource writer-queue ownership tracking with fence-linked handoff records (simulation only)
 - [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
