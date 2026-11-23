@@ -23,17 +23,28 @@ def build_graphics_compatibility_report(
         "pipeline": assess_pipeline(pipeline, adapter),
         "shaders": assess_shader_requirements(shader_requirements or {}, adapter),
         "formats": assess_format_requirements(required_formats or [], adapter),
-        "resource_binding": assess_binding_requirements(required_binding_tier, adapter) if required_binding_tier is not None else {\n            "status": "not_provided", "reason": "no binding tier requirement was declared",\n        },
-        "root_signature": assess_root_signature(root_signature) if root_signature is not None else {
-            "status": "not_provided", "native_serialization_performed": False,
-            "root_signature_created": False,
-        },
+        "resource_binding": (
+            assess_binding_requirements(required_binding_tier, adapter)
+            if required_binding_tier is not None
+            else {"status": "not_provided", "reason": "no binding tier requirement was declared"}
+        ),
+        "root_signature": (
+            assess_root_signature(root_signature)
+            if root_signature is not None
+            else {
+                "status": "not_provided",
+                "native_serialization_performed": False,
+                "root_signature_created": False,
+            }
+        ),
     }
-    statuses = []
-    statuses.append(sections["pipeline"]["status"])
-    statuses.append(sections["shaders"]["overall"])
-    statuses.append(sections["formats"]["overall"])
-    if sections["resource_binding"]["status"] != "not_provided":\n        statuses.append(sections["resource_binding"]["status"])
+    statuses = [
+        sections["pipeline"]["status"],
+        sections["shaders"]["overall"],
+        sections["formats"]["overall"],
+    ]
+    if sections["resource_binding"]["status"] != "not_provided":
+        statuses.append(sections["resource_binding"]["status"])
     if sections["root_signature"]["status"] not in {"not_provided", "native_validation_needed"}:
         statuses.append(sections["root_signature"]["status"])
     if "invalid_description" in statuses or "not_satisfied" in statuses:
