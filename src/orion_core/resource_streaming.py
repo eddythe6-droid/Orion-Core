@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable
 
 
 class ResourcePriority(int, Enum):
@@ -20,6 +19,7 @@ class ResourcePriority(int, Enum):
 class ResourceStatus(str, Enum):
     QUEUED = "queued"
     LOADING = "loading"
+    UPLOAD_PENDING = "upload_pending"
     RESIDENT = "resident"
     EVICTED = "evicted"
     FAILED = "failed"
