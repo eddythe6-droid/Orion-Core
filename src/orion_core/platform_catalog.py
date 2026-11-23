@@ -210,6 +210,34 @@ _RECORDS = (
         notes="This is a format support boundary in the documented XAudio 2.9 context. A port must identify source assets and any required transcode/decode path; do not assume all Xbox titles use XMA.",
     ),
 
+
+    EvidenceRecord(
+        claim_id="GDK-NET-001",
+        subsystem="networking",
+        claim="The GDK networking model supports Winsock and WinHTTP across PC and Xbox, while requiring GDK-specific network initialization and suspend/resume handling.",
+        platform="both",
+        classification="common",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/gaming/gdk/docs/features/console/networking/introduction-networking?view=gdk-2604",
+        source_title="Introduction to Microsoft Game Development Kit networking",
+        notes="Common API names do not remove lifecycle differences: titles must wait for network initialization and clean up applicable handles on suspend, then reinitialize after resume.",
+    ),
+    EvidenceRecord(
+        claim_id="GDK-NET-UDP-001",
+        subsystem="networking",
+        claim="GDK provides a preferred local UDP multiplayer port API to improve NAT and network compatibility; peer-to-peer titles still need address/port discovery and NAT traversal for moderate or strict NAT.",
+        platform="xbox",
+        classification="extension",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/gaming/gdk/docs/features/console/networking/game-mesh/winsock-intro-networking?view=gdk-2604",
+        source_title="Introduction to Windows sockets in the Microsoft Game Development Kit",
+        notes="The preferred port is not a complete P2P solution and does not replace discovery or NAT punching. Do not assume this GDK helper exists in a generic desktop Win32 build.",
+    ),
+
 )
 
 
