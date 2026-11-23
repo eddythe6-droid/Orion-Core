@@ -1,14 +1,51 @@
 # Orion-Core
 
-Orion-Core is an experimental, read-only Windows diagnostics and software-compatibility research toolkit.
+**Orion-Core** is an experimental, read-only research toolkit for inspecting Xbox game media and studying the technical work required to assess Windows-PC compatibility. It combines Windows hardware diagnostics, a native Direct3D 12 probe, platform capability research, and metadata-only game-image inspection.
+
+> **Current scope:** this is a research and inventory tool, not an Xbox emulator, game port, compatibility guarantee, or installer. It does not decrypt protected content, bypass DRM, patch signatures, extract game payloads, or execute files discovered during inspection.
+
+## What it can do
+
+### Game Inspector
+
+The Game Inspector creates a JSON inventory from a game directory, a supported disc image, a package file, or a ZIP archive.
+
+| Format / source | Current inspection |
+| --- | --- |
+| Directories | Recursive file inventory, signatures, extensions, optional bounded SHA-256 |
+| ZIP | Member names and sizes; no extraction |
+| ISO9660 | Volume and directory metadata |
+| XDVDFS / XISO | Volume descriptor and directory tree |
+| Xbox disc layouts | Known common XGD1, XGD2 and XGD3 partition offsets, plus bare/rebuilt XISO |
+| Xbox 360 XContent / STFS | Public metadata in `CON `, `LIVE`, and `PIRS` headers |
+| Xbox 360 GOD / SVOD | Conservative detection of the sibling header + `.data/DataNNNN` layout; file names and sizes only |
+| Xbox 360 XEX2 | Public wrapper metadata, optional-header directory, entry point, image base and execution information |
+| Windows PE | Basic PE structure and architecture metadata |
+
+The parsers are deliberately read-only. XEX2 inspection does not decrypt or decompress the wrapped PowerPC image. STFS/SVOD inspection does not validate package signatures, process hash tables, or reconstruct payload files. A detected signature or layout is evidence for further investigation, not proof that a complete or valid game has been parsed.
+
+### System and graphics diagnostics
+
+- Basic OS, CPU and memory report on Windows, Linux and macOS.
+- Extended Windows CPU/GPU and graphics-runtime inventory.
+- Native C++ Direct3D 12 probe under `native/d3d12_probe`.
+- GPU adapter capabilities, memory budgets, queues/fences, resource operations and a small render/readback workload.
+- Desktop dashboard with live events, diagnostics history and JSON export.
+
+The native D3D12 probe performs real operations on the Windows GPU. The Python graphics harness is a hardware-independent model for testing Orion-Core's abstractions; it is not a GPU emulator.
+
+### Platform compatibility research
+
+The curated capability catalogue links documented platform capabilities to evidence and preserves unknowns rather than inventing compatibility. It describes platform APIs and constraints, not the internals of a particular game.
 
 ## Requirements
 
-- Python 3.10 or newer
-- Basic system report: Windows, Linux, or macOS
-- Extended CPU/GPU and graphics-runtime inventory: Windows with PowerShell and access to the local Windows registry
+- Python 3.10 or newer.
+- Basic diagnostics: Windows, Linux or macOS.
+- Extended Windows inventory and native D3D12 probe: Windows; the native probe requires a suitable Visual Studio C++ toolchain and Windows SDK.
+- Pytest is used for development tests.
 
-## Run
+## Install and run
 
 From a source checkout:
 
@@ -17,36 +54,11 @@ python -m pip install -e .
 python -m orion_core
 ```
 
-Machine-readable report:
+Machine-readable system report:
 
 ```bash
 python -m orion_core --json
 ```
-
-## Desktop dashboard
-
-Launch the desktop interface on Windows:
-
-```bash
-orion-core-gui
-```
-
-Or from a source checkout:
-
-```bash
-python -m orion_core.gui
-```
-
-The dashboard includes a live event console, read-only system inventory cards,
-log saving, and JSON report export. The system scan reports real collector
-events for OS/CPU/memory and Windows CIM/registry inventory. The **Run D3D12
-test** button asks the user to select a previously built native probe executable,
-launches it without a shell, streams native `[ORION_PROGRESS]` events from standard error into the live console, validates its JSON output, and adds that report to
-the combined JSON export. Native probe execution is a real hardware workload,
-not simulated progress; it may exercise command queues, resource copies and a
-small render/readback test. The interface uses Python's built-in Tkinter and
-adds no third-party runtime dependency.
-
 
 Skip Windows-specific inventory:
 
@@ -54,28 +66,91 @@ Skip Windows-specific inventory:
 python -m orion_core --basic-only --json
 ```
 
-## Windows inventory scope
+Launch the desktop dashboard:
 
-The current Windows collector reads CPU and display-adapter properties through CIM, the DirectX registry version, and the count of registered Vulkan ICD manifest entries. These are diagnostic indicators, not a certification of game compatibility or a complete DirectX feature-level/Vulkan capability test. Missing data is reported rather than guessed.
+```bash
+orion-core-gui
+```
 
-The tool is read-only: it does not change registry values, install software or drivers, run downloaded executables, or collect device serial numbers, MAC addresses, usernames, hostnames, or personal files.
+or:
 
-See [ROADMAP](docs/ROADMAP.md), [SAFETY](docs/SAFETY.md), and the [agent team charter](docs/AGENT_TEAM.md). Role prompts for compatible coding-agent environments are stored in `.github/agents/`.
+```bash
+python -m orion_core.gui
+```
+
+## Inspect game files
+
+Inspect a directory recursively:
+
+```bash
+python -m orion_core --inspect-game-path "D:\\Games\\Example" --inspect-output ".\\game-inventory.json"
+```
+
+Inspect a disc image:
+
+```bash
+python -m orion_core --inspect-game-path "D:\\Images\\game.iso" --inspect-output ".\\game-inventory.json"
+```
+
+Inspect a package or XEX file:
+
+```bash
+python -m orion_core --inspect-game-path "D:\\Games\\default.xex" --inspect-output ".\\xex-report.json"
+python -m orion_core --inspect-game-path "D:\\Packages\\content"
+```
+
+Optional SHA-256 is limited to regular files no larger than 64 MiB:
+
+```bash
+python -m orion_core --inspect-game-path "D:\\Games\\Example" --inspect-hash-files
+```
+
+The inspector reports detected formats, metadata, file sizes, parser warnings and explicit scope flags. It does not mount images or unpack archives.
+
+## Native Direct3D 12 probe
+
+Source and build notes are in [NATIVE_D3D12_PROBE](docs/NATIVE_D3D12_PROBE.md). The dashboard can launch a previously built probe executable without invoking a shell, stream progress messages, validate its JSON output and attach the result to a combined report.
+
+Windows CI compilation is not a substitute for running the probe on physical hardware. Actual GPU behavior must be tested on the target PC.
 
 ## Platform capability catalogue
 
-Export the curated, source-backed Xbox/Windows PC capability inventory:
+Export the curated Xbox/Windows PC capability inventory:
 
 ```bash
 python -m orion_core --capabilities-json
 ```
 
-The catalogue distinguishes documented common APIs from platform-specific extensions and preserves unknowns rather than guessing. It describes public platform contracts, not the implementation details of any particular game. See [the capability research report](docs/RESEARCH_CAPABILITY_CATALOG.md).
+Create an evidence-linked target assessment:
 
-## Synthetic graphics harness
+```bash
+python -m orion_core --assess-target windows_pc
+```
 
-A hardware-independent model for D3D12-inspired queue/fence lifetime, residency-budget and descriptor-range invariants is available in `orion_core.graphics_harness`. It is a simulator for testing Orion-Core abstractions, not a GPU driver or Xbox emulator. See [the harness notes](docs/GRAPHICS_HARNESS.md) and [the graphics deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md).
+See [RESEARCH_CAPABILITY_CATALOG](docs/RESEARCH_CAPABILITY_CATALOG.md).
 
-## Native Windows D3D12 probe
+## Research and documentation
 
-A read-only C++ probe is available under `native/d3d12_probe`. It queries public Windows D3D12 adapter capabilities and performs a minimal queue/fence check. See [build and scope notes](docs/NATIVE_D3D12_PROBE.md). Windows CI compiles it; physical GPU execution must be validated separately.
+- [Roadmap](docs/ROADMAP.md)
+- [Game Inspector](docs/GAME_INSPECTOR.md)
+- [XDVDFS / XISO](docs/XDVDFS.md)
+- [Native D3D12 probe](docs/NATIVE_D3D12_PROBE.md)
+- [Graphics harness](docs/GRAPHICS_HARNESS.md)
+- [Graphics research deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md)
+- [Safety scope](docs/SAFETY.md)
+- [Agent team charter](docs/AGENT_TEAM.md)
+
+## Current limitations
+
+- No real Xbox game image has yet been validated in this development workflow; format tests currently use synthetic fixtures.
+- XGD2 partition offsets can vary; known offsets do not guarantee detection of every image, hybrid or unusual layout.
+- XEX2 metadata parsing does not interpret encrypted/compressed PE payloads, import ordinals, or security-page hash structures.
+- STFS/SVOD file-system and hash-table traversal is not implemented.
+- XBE (original Xbox), XEX1 and other legacy/variant formats need separate verified parsers.
+- A metadata report cannot determine whether a game can be ported. That requires executable analysis, asset and shader research, CPU/GPU behavior study, API mapping and validation on real target hardware.
+
+## Safety and privacy
+
+Orion-Core is designed for local, read-only analysis. It does not change registry settings, install drivers, run discovered executables, decrypt protected payloads, bypass access controls, or alter signatures. System diagnostics avoid collecting device serial numbers, MAC addresses, usernames, hostnames or personal files.
+
+Only inspect game materials you are legally entitled to access.
