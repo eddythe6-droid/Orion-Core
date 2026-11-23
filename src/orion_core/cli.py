@@ -10,11 +10,13 @@ from .platform_catalog import load_platform_inventory
 from .capability import assess_compatibility
 from .windows_info import collect_windows_diagnostics
 from .report import collect_diagnostics_report
+from .gpu_probe import load_probe_report, summarize_probe_report
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Collect a read-only system report.")
     parser.add_argument("--json", action="store_true", help="Print the system report as JSON.")
+    parser.add_argument("--gpu-probe-json", help="Validate and summarize a JSON report produced by the native D3D12 probe.")
     parser.add_argument("--capabilities-json", action="store_true", help="Export the curated Xbox/Windows platform capability catalogue as JSON.")
     parser.add_argument("--assess-target", choices=("windows_pc", "xbox"), help="Create an evidence-linked compatibility assessment for a target platform.")
     parser.add_argument("--subsystem", help="Limit a capability export or assessment to one subsystem.")
@@ -24,6 +26,11 @@ def main() -> None:
         help="Skip Windows-specific hardware and graphics inventory.",
     )
     args = parser.parse_args()
+
+    if args.gpu_probe_json:
+        report = load_probe_report(args.gpu_probe_json)
+        print(json.dumps(summarize_probe_report(report), indent=2, ensure_ascii=False))
+        return
 
     if args.capabilities_json:
         inventory = load_platform_inventory()
