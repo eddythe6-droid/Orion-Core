@@ -50,3 +50,7 @@ The catalogue distinguishes documented common APIs from platform-specific extens
 ## Synthetic graphics harness
 
 A hardware-independent model for D3D12-inspired queue/fence lifetime, residency-budget and descriptor-range invariants is available in `orion_core.graphics_harness`. It is a simulator for testing Orion-Core abstractions, not a GPU driver or Xbox emulator. See [the harness notes](docs/GRAPHICS_HARNESS.md) and [the graphics deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md).
+
+## Native Windows D3D12 probe
+
+A read-only C++ probe is available under `native/d3d12_probe`. It queries public Windows D3D12 adapter capabilities and performs a minimal queue/fence check. See [build and scope notes](docs/NATIVE_D3D12_PROBE.md). Windows CI compiles it; physical GPU execution must be validated separately.
