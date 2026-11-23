@@ -17,6 +17,10 @@
 
 using Microsoft::WRL::ComPtr;
 
+static void report_progress(const std::string& stage) {
+    std::cerr << "[ORION_PROGRESS] " << stage << std::endl;
+}
+
 static std::string json_escape(const std::string& value) {
     std::ostringstream out;
     for (unsigned char c : value) {
@@ -644,6 +648,7 @@ static RenderSmokeResult run_render_smoke_test(
 }
 
 int main(int argc, char** argv) {
+    report_progress("startup: parsing command line");
     bool includeSoftware = false;
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--include-software") includeSoftware = true;
@@ -653,6 +658,7 @@ int main(int argc, char** argv) {
         }
     }
 
+    report_progress("dxgi: creating factory");
     ComPtr<IDXGIFactory6> factory;
     HRESULT hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&factory));
     if (FAILED(hr)) {
@@ -662,6 +668,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    report_progress("dxgi: enumerating adapters");
     std::vector<std::string> adapterReports;
     UINT adapterIndex = 0;
     UINT hardwareDevices = 0;
@@ -676,6 +683,7 @@ int main(int argc, char** argv) {
         const bool software = (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0;
         if (software && !includeSoftware) continue;
 
+        report_progress("adapter: creating D3D12 device for " + narrow(desc.Description));
         ComPtr<ID3D12Device> device;
         hr = D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
                                IID_PPV_ARGS(&device));
@@ -830,9 +838,14 @@ int main(int argc, char** argv) {
             } else queueError = "create_fence_failed:" + hr_string(hr);
         } else queueError = "create_command_queue_failed:" + hr_string(hr);
 
+        report_progress("smoke: queue and fence test completed");
+        report_progress("smoke: upload-copy-readback test");
         const ResourceSmokeResult resourceSmoke = queue ? run_resource_copy_smoke_test(device.Get(), queue.Get()) : ResourceSmokeResult{false, "queue_unavailable"};
+        report_progress("smoke: root signature and descriptor heaps");
         const BindingSmokeResult bindingSmoke = run_binding_smoke_test(device.Get());
+        report_progress("smoke: HLSL compile, draw, render-target readback");
         const RenderSmokeResult renderSmoke = queue ? run_render_smoke_test(device.Get(), queue.Get()) : RenderSmokeResult{};
+        report_progress("adapter: collecting JSON report for " + narrow(desc.Description));
         std::ostringstream item;
         item << "{\"name\":\"" << json_escape(narrow(desc.Description))
              << "\",\"vendor_id\":" << desc.VendorId
@@ -895,6 +908,7 @@ int main(int argc, char** argv) {
         adapterReports.push_back(item.str());
     }
 
+    report_progress("complete: serializing final JSON report");
     std::cout << "{\"schema_version\":1,\"probe\":\"orion_d3d12_probe\","
               << "\"available\":" << (hardwareDevices ? "true" : "false")
               << ",\"hardware_d3d12_adapters\":" << hardwareDevices
