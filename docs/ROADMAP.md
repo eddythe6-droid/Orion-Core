@@ -20,8 +20,9 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Validated evidence records with source provenance
 - [x] Machine-readable capability inventory with schema version
 - [x] Conservative Windows PC/Xbox support assessment; unknown remains unknown
-- [ ] Populate the inventory from official, versioned platform documentation
-- [ ] Add JSON CLI export and schema compatibility tests
+- [x] Populate the inventory from official Microsoft GDK documentation
+- [x] Add JSON CLI export for the curated capability catalogue
+- [ ] Add schema compatibility tests and a documented schema migration policy
 
 ## Milestone 0.4 — Compatibility test harness
 - [ ] Declarative, read-only checks
