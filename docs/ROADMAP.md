@@ -15,7 +15,8 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Validate output on supported Windows versions and NVIDIA/AMD/Intel systems
 - [x] Add native Windows D3D12 feature-level and capability probe (runtime validation pending)
 - [ ] Add explicit Vulkan device-capability probe
-- [ ] Stable JSON schema and report versioning
+- [x] Versioned diagnostic JSON report envelope with UTC timestamp and environment metadata
+- [ ] Validate output on supported Windows versions and NVIDIA/AMD/Intel systems
 
 ## Milestone 0.3 — Evidence-backed platform model
 - [x] Validated evidence records with source provenance
@@ -30,7 +31,8 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Initial hardware-independent graphics lifetime simulator (queue/fence, residency budget, descriptor retirement)
 - [x] Resource transition state tracker (simulation only; runtime GPU validation not implied)
 - [ ] Declarative, read-only checks
-- [ ] Reproducible test results with timestamps and environment metadata
+- [x] Timestamped diagnostic report with environment metadata
+- [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
 - [ ] Reproducible hardware test results with timestamps and environment metadata
