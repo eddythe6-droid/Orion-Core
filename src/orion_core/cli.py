@@ -12,6 +12,7 @@ from .windows_info import collect_windows_diagnostics
 from .report import collect_diagnostics_report
 from .gpu_probe import load_probe_report, summarize_probe_report, compare_gpu_adapters, summarize_gpu_memory
 from .history import HistoryStore
+from .game_inspector import inspect_game_path, save_inspection_report
 
 
 def main() -> None:
@@ -28,12 +29,25 @@ def main() -> None:
     parser.add_argument("--history-show", metavar="RECORD_ID", help="Print a saved history record as JSON.")
     parser.add_argument("--history-save-json", metavar="REPORT_JSON", help="Validate a JSON object and save it to history.")
     parser.add_argument("--history-kind", default="imported_report", help="Report kind label used with --history-save-json.")
+    parser.add_argument("--inspect-game-path", help="Read-only inventory of a game file, directory, or ZIP archive.")
+    parser.add_argument("--inspect-output", help="Write game inspection results to this JSON file.")
+    parser.add_argument("--inspect-hash-files", action="store_true", help="Compute SHA-256 for regular files up to 64 MiB.")
     parser.add_argument(
         "--basic-only",
         action="store_true",
         help="Skip Windows-specific hardware and graphics inventory.",
     )
     args = parser.parse_args()
+
+    if args.inspect_game_path:
+        inspection = inspect_game_path(args.inspect_game_path, hash_files=args.inspect_hash_files)
+        if args.inspect_output:
+            output = save_inspection_report(inspection, args.inspect_output)
+            print(json.dumps({"saved": str(output), "files_inspected": inspection["files_inspected"],
+                              "type_counts": inspection["type_counts"]}, indent=2, ensure_ascii=False))
+        else:
+            print(json.dumps(inspection, indent=2, ensure_ascii=False))
+        return
 
     if args.history_list or args.history_show or args.history_save_json:
         store = HistoryStore(args.history_dir)
