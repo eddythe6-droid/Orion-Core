@@ -114,7 +114,7 @@ static bool wait_for_fence(ID3D12Fence* fence, UINT64 value, HANDLE eventHandle)
 }
 
 struct ResourceSmokeResult { bool success = false; std::string note = "not_run"; };
-static ResourceSmokeResult run_resource_copy_smoke_test(ID3D12Device* d, ID3D12CommandQueue* q) {
+             << ",\"resource_copy_smoke_test\":" << (resourceSmoke.success ? "true" : "false")
     ResourceSmokeResult o; constexpr UINT64 n=256;
     ComPtr<ID3D12Resource> u,g,b; ComPtr<ID3D12CommandAllocator> a;
     ComPtr<ID3D12GraphicsCommandList> l; ComPtr<ID3D12Fence> f; HANDLE ev=nullptr;
