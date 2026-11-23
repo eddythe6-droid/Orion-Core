@@ -87,3 +87,14 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 ## Later
 - [ ] Optional user-approved tests for specific software
 - [ ] Documentation for interpreting results
+
+
+## Game image inspection progress (2026-11-23)
+
+- [x] Read-only ISO9660 volume and directory inventory.
+- [x] Read-only XDVDFS/XISO volume descriptor and binary-tree directory inventory for standard sector-32 and rebuilt sector-0 layouts.
+- [ ] Detect Xbox 360 XGD1/XGD2/XGD3 partition offsets and hybrid layouts.
+- [ ] Inspect STFS/SVOD containers and their relationship to embedded XDVDFS data.
+- [ ] Validate parsers against legally obtained, unprotected sample images and record format coverage.
+
+Current parser scope and limitations: see `GAME_INSPECTOR.md` and `XDVDFS.md`.
