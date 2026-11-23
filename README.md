@@ -41,7 +41,7 @@ The dashboard includes a live event console, read-only system inventory cards,
 log saving, and JSON report export. The system scan reports real collector
 events for OS/CPU/memory and Windows CIM/registry inventory. The **Run D3D12
 test** button asks the user to select a previously built native probe executable,
-launches it without a shell, validates its JSON output, and adds that report to
+launches it without a shell, streams native `[ORION_PROGRESS]` events from standard error into the live console, validates its JSON output, and adds that report to
 the combined JSON export. Native probe execution is a real hardware workload,
 not simulated progress; it may exercise command queues, resource copies and a
 small render/readback test. The interface uses Python's built-in Tkinter and
