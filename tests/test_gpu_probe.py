@@ -179,15 +179,19 @@ def test_native_render_smoke_fields_are_validated_and_summarized():
         "render_shader_compile": True,
         "render_root_signature": True,
         "render_pipeline_state": True,
-        "render_draw_executed": True,
-        "render_smoke_note": "hlsl_pso_draw_readback_pixel_verified",
+        "render_draw_recorded": True,
+        "render_commands_submitted": True,
+        "render_descriptor_binding": True,
+        "render_smoke_note": "cbv_descriptor_bound_hlsl_draw_readback_pixel_verified",
     })
     summary = summarize_probe_report(report)["adapters"][0]
     assert summary["render_smoke_test"] is True
     assert summary["render_pipeline_state"] is True
-    assert summary["render_draw_executed"] is True
-    assert summary["render_smoke_note"] == "hlsl_pso_draw_readback_pixel_verified"
+    assert summary["render_draw_recorded"] is True
+    assert summary["render_commands_submitted"] is True
+    assert summary["render_descriptor_binding"] is True
+    assert summary["render_smoke_note"] == "cbv_descriptor_bound_hlsl_draw_readback_pixel_verified"
 
-    adapter["render_draw_executed"] = "yes"
-    with pytest.raises(ProbeReportError, match="render_draw_executed"):
+    adapter["render_descriptor_binding"] = "yes"
+    with pytest.raises(ProbeReportError, match="render_descriptor_binding"):
         validate_probe_report(report)
