@@ -123,12 +123,18 @@ def test_subresource_tracker_transitions_individual_and_all_subresources():
     )
     assert tracker.state_of("texture", 1) == ResourceState.COPY_DEST
 
+    tracker.transition(
+        "texture", ResourceState.COMMON, ResourceState.COPY_DEST, subresource=0
+    )
+    tracker.transition(
+        "texture", ResourceState.COMMON, ResourceState.COPY_DEST, subresource=2
+    )
     second = tracker.transition(
-        "texture", ResourceState.COMMON, ResourceState.SHADER_RESOURCE
+        "texture", ResourceState.COPY_DEST, ResourceState.SHADER_RESOURCE
     )
     assert tracker.state_of("texture") == (
         ResourceState.SHADER_RESOURCE,
-        ResourceState.COPY_DEST,
+        ResourceState.SHADER_RESOURCE,
         ResourceState.SHADER_RESOURCE,
     )
     assert tracker.history == (first, second)
@@ -154,7 +160,7 @@ def test_subresource_tracker_validates_registration_and_indices():
     tracker = SubresourceStateTracker()
     with pytest.raises(ValueError, match="positive integer"):
         tracker.register("empty", 0, ResourceState.COMMON)
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError, match="positive integer"):
         tracker.register("bool-count", True, ResourceState.COMMON)
     tracker.register("texture", 2, ResourceState.COMMON)
     with pytest.raises(IndexError, match="out of range"):
