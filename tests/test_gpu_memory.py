@@ -48,3 +48,20 @@ def test_probe_memory_summary_keeps_missing_pools_unknown():
     assert result["pools"]["local"]["pressure"] == "unknown"
     assert result["pools"]["non_local"]["pressure"] == "unknown"
     assert result["game_compatibility_established"] is False
+
+
+def test_probe_memory_summary_uses_dxgi_budget_and_usage_fields():
+    from orion_core.gpu_probe import summarize_gpu_memory
+    report = {
+        "schema_version": 1, "probe": "orion_d3d12_probe", "available": True,
+        "adapters": [{
+            "name": "GPU", "software": False, "d3d12_device": True,
+            "video_memory": {
+                "local": {"query_available": True, "budget_bytes": 1000, "current_usage_bytes": 950, "available_for_reservation_bytes": 50},
+                "non_local": {"query_available": False, "budget_bytes": None, "current_usage_bytes": None, "available_for_reservation_bytes": None},
+            },
+        }],
+    }
+    result = summarize_gpu_memory(report)
+    assert result["adapters"][0]["pools"]["local"]["pressure"] == "high"
+    assert result["adapters"][0]["pools"]["non_local"]["pressure"] == "unknown"
