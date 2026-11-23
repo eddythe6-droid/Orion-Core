@@ -16,7 +16,8 @@ from .gpu_probe import load_probe_report, summarize_probe_report, compare_gpu_ad
 def main() -> None:
     parser = argparse.ArgumentParser(description="Collect a read-only system report.")
     parser.add_argument("--json", action="store_true", help="Print the system report as JSON.")
-    parser.add_argument("--gpu-probe-json", help="Validate and summarize a JSON report produced by the native D3D12 probe.")\n    parser.add_argument("--compare-gpus", nargs=2, metavar=("LEFT_JSON", "RIGHT_JSON"), help="Compare two native D3D12 probe JSON reports.")
+    parser.add_argument("--gpu-probe-json", help="Validate and summarize a JSON report produced by the native D3D12 probe.")
+    parser.add_argument("--compare-gpus", nargs=2, metavar=("LEFT_JSON", "RIGHT_JSON"), help="Compare two native D3D12 probe JSON reports.")
     parser.add_argument("--capabilities-json", action="store_true", help="Export the curated Xbox/Windows platform capability catalogue as JSON.")
     parser.add_argument("--assess-target", choices=("windows_pc", "xbox"), help="Create an evidence-linked compatibility assessment for a target platform.")
     parser.add_argument("--subsystem", help="Limit a capability export or assessment to one subsystem.")
