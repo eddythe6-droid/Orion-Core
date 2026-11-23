@@ -25,7 +25,7 @@ def test_history_rejects_non_json_data_without_creating_record(tmp_path):
 
 def test_history_reports_corrupt_record_instead_of_silently_skipping(tmp_path):
     store = HistoryStore(tmp_path)
-    store.directory.mkdir(parents=True)
+    store.directory.mkdir(parents=True, exist_ok=True)
     (store.directory / "broken.json").write_text("{not json", encoding="utf-8")
     with pytest.raises(HistoryStoreError, match="cannot read"):
         store.list_reports()
