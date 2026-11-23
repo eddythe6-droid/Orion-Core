@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .graphics_harness import FencePoint, QueueTimeline
-from .resource_streaming import (\n    ResourcePriority, ResourceStatus, ResourceStreamingEngine,\n    StreamResource, StreamingEvent,\n)
+from .resource_streaming import ResourcePriority, ResourceStatus, ResourceStreamingEngine, StreamResource, StreamingEvent
 
 
 @dataclass(frozen=True, slots=True)
