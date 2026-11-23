@@ -59,7 +59,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Exportable compatibility reports
 - [ ] Native PSO creation tests using supplied shader bytecode and complete pipeline state
 - [ ] Render-target format support interpretation using verified SDK flag definitions
-- [ ] Native resource-binding validation with root signatures, descriptor heaps, and command lists
+- [x] Native minimal root-signature serialization/creation smoke test (runtime result captured per adapter)\n- [x] Native shader-visible CBV/SRV/UAV and sampler descriptor heap creation smoke tests\n- [ ] Populate descriptors and bind heaps/root signature on a command list\n- [ ] Native resource-binding validation with root signatures, descriptor heaps, and command lists
 - [ ] Native root-signature serialization and PSO creation smoke tests
 
 ## Later
