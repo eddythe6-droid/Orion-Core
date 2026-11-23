@@ -18,6 +18,7 @@ from typing import Any
 from . import __version__
 from .report import collect_diagnostics_report
 from .gpu_probe import ProbeReportError, validate_probe_report
+from .history import HistoryStore, HistoryStoreError
 
 
 class OrionDashboard:
@@ -30,6 +31,7 @@ class OrionDashboard:
         self.worker: threading.Thread | None = None
         self.report: dict[str, Any] | None = None
         self.gpu_report: dict[str, Any] | None = None
+        self.history_store = HistoryStore()
         self._scan_success = False
         self.log_lines: list[str] = []
         self._configure_style()
@@ -89,6 +91,8 @@ class OrionDashboard:
         ttk.Button(actions, text="Экспорт отчёта JSON", command=self.export_report).pack(side="left")
         self.gpu_button = ttk.Button(actions, text="▶  Запустить D3D12-тест", command=self.choose_gpu_probe)
         self.gpu_button.pack(side="left", padx=8)
+        ttk.Button(actions, text="Сохранить в историю", command=self.save_history).pack(side="left", padx=8)
+        ttk.Button(actions, text="История", command=self.refresh_history).pack(side="left")
         ttk.Button(actions, text="Очистить консоль", command=self.clear_console).pack(side="right")
 
         split = ttk.Panedwindow(outer, orient="vertical")
@@ -98,7 +102,7 @@ class OrionDashboard:
         self.detail_notebook = ttk.Notebook(overview)
         self.detail_notebook.pack(fill="both", expand=True)
         self.detail_views = {}
-        for tab_name in ("Обзор", "CPU и память", "GPU / D3D12", "Совместимость"):
+        for tab_name in ("Обзор", "CPU и память", "GPU / D3D12", "Совместимость", "История"):
             tab = ttk.Frame(self.detail_notebook, padding=10)
             text_view = tk.Text(tab, bg="#192535", fg="#e7eef7", insertbackground="white", relief="flat", wrap="word", font=("Segoe UI", 10), state="disabled")
             text_view.pack(fill="both", expand=True)
@@ -108,6 +112,7 @@ class OrionDashboard:
         self._set_detail("CPU и память", "Данные появятся после системной диагностики.")
         self._set_detail("GPU / D3D12", "Запустите D3D12 probe для подробного отчёта.")
         self._set_detail("Совместимость", "Каталог содержит документированные контракты платформ, а не оценку конкретной игры.")
+        self._set_detail("История", "Нажмите «История», чтобы просмотреть сохранённые диагностические снимки.")
         console = ttk.Frame(split, style="Card.TFrame", padding=10)
         console_header = ttk.Frame(console, style="Card.TFrame")
         console_header.pack(fill="x", pady=(0, 7))
@@ -266,6 +271,44 @@ class OrionDashboard:
         self._set_detail("Совместимость", "Каталог платформ описывает документированные API-контракты Windows PC и Xbox. Он не подтверждает совместимость конкретной игры, её бинарного файла или аппаратной конфигурации.")
         self._log("SUCCESS", f"Система: {os_info['system']} {os_info['release']}; CPU: {cpu}; GPU: {self.card_values['gpu'].get()}.")
 
+
+
+    def save_history(self) -> None:
+        """Persist the most recent completed diagnostic or native GPU report."""
+        if self.gpu_report is not None:
+            report, kind = self.gpu_report, "native_d3d12_probe"
+        elif self.report is not None:
+            report, kind = self.report, "system_diagnostics"
+        else:
+            messagebox.showinfo("Orion-Core", "Сначала выполните системную диагностику или D3D12-тест.")
+            return
+        try:
+            record = self.history_store.add_report(report, kind=kind)
+        except (HistoryStoreError, OSError) as exc:
+            self._log("ERROR", f"Не удалось сохранить историю: {type(exc).__name__}: {exc}")
+            messagebox.showerror("Orion-Core", f"Не удалось сохранить результат: {exc}")
+            return
+        self._log("SUCCESS", f"Снимок сохранён в историю: {kind}, ID {record['id']}.")
+        self.refresh_history()
+
+    def refresh_history(self) -> None:
+        """Render saved history metadata without loading every full report into the UI."""
+        try:
+            records = self.history_store.list_reports()
+        except (HistoryStoreError, OSError) as exc:
+            self._set_detail("История", f"Ошибка чтения истории: {type(exc).__name__}: {exc}")
+            self._log("ERROR", f"История недоступна: {type(exc).__name__}: {exc}")
+            return
+        if not records:
+            view = "История пока пуста. Выполните диагностику и нажмите «Сохранить в историю»."
+        else:
+            lines = [f"Сохранено снимков: {len(records)}", ""]
+            for item in records:
+                lines.append(f"{item['created_at']} | {item['kind']} | ID: {item['id']}")
+            view = "\n".join(lines)
+        self._set_detail("История", view)
+        self.detail_notebook.select(list(self.detail_views).index("История"))
+        self._log("INFO", f"История обновлена: записей {len(records)}.")
 
     def choose_gpu_probe(self) -> None:
         if self.worker and self.worker.is_alive():
