@@ -501,7 +501,8 @@ int main(int argc, char** argv) {
             } else queueError = "create_fence_failed:" + hr_string(hr);
         } else queueError = "create_command_queue_failed:" + hr_string(hr);
 
-        const ResourceSmokeResult resourceSmoke = queue ? run_resource_copy_smoke_test(device.Get(), queue.Get()) : ResourceSmokeResult{false, "queue_unavailable"};\n        const BindingSmokeResult bindingSmoke = run_binding_smoke_test(device.Get());
+        const ResourceSmokeResult resourceSmoke = queue ? run_resource_copy_smoke_test(device.Get(), queue.Get()) : ResourceSmokeResult{false, "queue_unavailable"};
+        const BindingSmokeResult bindingSmoke = run_binding_smoke_test(device.Get());
         std::ostringstream item;
         item << "{\"name\":\"" << json_escape(narrow(desc.Description))
              << "\",\"vendor_id\":" << desc.VendorId
