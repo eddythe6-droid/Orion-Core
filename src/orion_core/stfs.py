@@ -36,7 +36,7 @@ def _be64(data: bytes, offset: int) -> int:
 
 def _utf16be(data: bytes) -> str:
     try:
-        return data.split(b"\\x00\\x00", 1)[0].decode("utf-16-be", errors="replace").rstrip("\\x00").strip()
+        return data.split(b"\x00\x00", 1)[0].decode("utf-16-be", errors="replace").rstrip("\x00").strip()
     except Exception:
         return ""
 
