@@ -31,6 +31,9 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Resource transition state tracker (simulation only; runtime GPU validation not implied)
 - [ ] Declarative, read-only checks
 - [ ] Reproducible test results with timestamps and environment metadata
+- [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
+- [x] CLI JSON export and subsystem filtering for compatibility reports
+- [ ] Reproducible hardware test results with timestamps and environment metadata
 - [ ] Exportable compatibility reports
 
 ## Later
