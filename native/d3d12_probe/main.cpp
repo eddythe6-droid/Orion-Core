@@ -113,30 +113,133 @@ static bool wait_for_fence(ID3D12Fence* fence, UINT64 value, HANDLE eventHandle)
     return WaitForSingleObject(eventHandle, 10000) == WAIT_OBJECT_0;
 }
 
-struct ResourceSmokeResult { bool success = false; std::string note = "not_run"; };
-             << ",\"resource_copy_smoke_test\":" << (resourceSmoke.success ? "true" : "false")
-    ResourceSmokeResult o; constexpr UINT64 n=256;
-    ComPtr<ID3D12Resource> u,g,b; ComPtr<ID3D12CommandAllocator> a;
-    ComPtr<ID3D12GraphicsCommandList> l; ComPtr<ID3D12Fence> f; HANDLE ev=nullptr;
-    auto fail=[&](const char* s,HRESULT h){o.note=std::string(s)+":"+hr_string(h);if(ev)CloseHandle(ev);return o;};
-    D3D12_RESOURCE_DESC x{};x.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;x.Width=n;x.Height=1;x.DepthOrArraySize=1;x.MipLevels=1;x.SampleDesc.Count=1;x.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    D3D12_HEAP_PROPERTIES hu{};hu.Type=D3D12_HEAP_TYPE_UPLOAD;hu.CreationNodeMask=1;hu.VisibleNodeMask=1;
-    D3D12_HEAP_PROPERTIES hd{};hd.Type=D3D12_HEAP_TYPE_DEFAULT;hd.CreationNodeMask=1;hd.VisibleNodeMask=1;
-    D3D12_HEAP_PROPERTIES hr{};hr.Type=D3D12_HEAP_TYPE_READBACK;hr.CreationNodeMask=1;hr.VisibleNodeMask=1;
-    HRESULT h=d->CreateCommittedResource(&hu,D3D12_HEAP_FLAG_NONE,&x,D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&u));if(FAILED(h))return fail("upload",h);
-    h=d->CreateCommittedResource(&hd,D3D12_HEAP_FLAG_NONE,&x,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&g));if(FAILED(h))return fail("default",h);
-    h=d->CreateCommittedResource(&hr,D3D12_HEAP_FLAG_NONE,&x,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&b));if(FAILED(h))return fail("readback",h);
-    const D3D12_RANGE nr{0,0};std::uint8_t* p=nullptr;h=u->Map(0,&nr,reinterpret_cast<void**>(&p));if(FAILED(h))return fail("map_upload",h);
-    for(UINT i=0;i<n;++i)p[i]=static_cast<std::uint8_t>((i*37u+11u)&255u);u->Unmap(0,nullptr);
-    h=d->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&a));if(FAILED(h))return fail("allocator",h);
-    h=d->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,a.Get(),nullptr,IID_PPV_ARGS(&l));if(FAILED(h))return fail("list",h);
-    l->CopyBufferRegion(g.Get(),0,u.Get(),0,n);D3D12_RESOURCE_BARRIER z{};z.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;z.Transition.pResource=g.Get();z.Transition.Subresource=D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;z.Transition.StateBefore=D3D12_RESOURCE_STATE_COPY_DEST;z.Transition.StateAfter=D3D12_RESOURCE_STATE_COPY_SOURCE;l->ResourceBarrier(1,&z);l->CopyBufferRegion(b.Get(),0,g.Get(),0,n);
-    h=l->Close();if(FAILED(h))return fail("close",h);ID3D12CommandList* ls[]={l.Get()};q->ExecuteCommandLists(1,ls);
-    h=d->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&f));if(FAILED(h))return fail("fence",h);ev=CreateEventW(nullptr,FALSE,FALSE,nullptr);if(!ev){o.note="event_failed";return o;}
-    h=q->Signal(f.Get(),1);if(FAILED(h))return fail("signal",h);if(!wait_for_fence(f.Get(),1,ev)){CloseHandle(ev);o.note="wait_failed";return o;}
-    const D3D12_RANGE rr{0,static_cast<SIZE_T>(n)};std::uint8_t* v=nullptr;h=b->Map(0,&rr,reinterpret_cast<void**>(&v));if(FAILED(h))return fail("map_readback",h);
-    bool ok=true;for(UINT i=0;i<n;++i)if(v[i]!=static_cast<std::uint8_t>((i*37u+11u)&255u)){ok=false;break;}const D3D12_RANGE nw{0,0};b->Unmap(0,&nw);CloseHandle(ev);
-    o.success=ok;o.note=ok?"upload_copy_barrier_readback_verified":"readback_mismatch";return o;
+struct ResourceSmokeResult {
+    bool success = false;
+    std::string note = "not_run";
+};
+
+static ResourceSmokeResult run_resource_copy_smoke_test(
+    ID3D12Device* device, ID3D12CommandQueue* queue) {
+    ResourceSmokeResult result;
+    constexpr UINT64 size = 256;
+    ComPtr<ID3D12Resource> upload, gpu, readback;
+    ComPtr<ID3D12CommandAllocator> allocator;
+    ComPtr<ID3D12GraphicsCommandList> list;
+    ComPtr<ID3D12Fence> fence;
+    HANDLE eventHandle = nullptr;
+
+    auto fail = [&](const char* stage, HRESULT hr) {
+        result.note = std::string(stage) + ":" + hr_string(hr);
+        if (eventHandle) CloseHandle(eventHandle);
+        return result;
+    };
+
+    D3D12_RESOURCE_DESC desc{};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    desc.Width = size;
+    desc.Height = 1;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.SampleDesc.Count = 1;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+    D3D12_HEAP_PROPERTIES uploadHeap{};
+    uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
+    uploadHeap.CreationNodeMask = 1;
+    uploadHeap.VisibleNodeMask = 1;
+
+    D3D12_HEAP_PROPERTIES defaultHeap{};
+    defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+    defaultHeap.CreationNodeMask = 1;
+    defaultHeap.VisibleNodeMask = 1;
+
+    D3D12_HEAP_PROPERTIES readbackHeap{};
+    readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+    readbackHeap.CreationNodeMask = 1;
+    readbackHeap.VisibleNodeMask = 1;
+
+    HRESULT hr = device->CreateCommittedResource(
+        &uploadHeap, D3D12_HEAP_FLAG_NONE, &desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&upload));
+    if (FAILED(hr)) return fail("upload", hr);
+
+    hr = device->CreateCommittedResource(
+        &defaultHeap, D3D12_HEAP_FLAG_NONE, &desc,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&gpu));
+    if (FAILED(hr)) return fail("default", hr);
+
+    hr = device->CreateCommittedResource(
+        &readbackHeap, D3D12_HEAP_FLAG_NONE, &desc,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback));
+    if (FAILED(hr)) return fail("readback", hr);
+
+    const D3D12_RANGE noRead{0, 0};
+    std::uint8_t* source = nullptr;
+    hr = upload->Map(0, &noRead, reinterpret_cast<void**>(&source));
+    if (FAILED(hr)) return fail("map_upload", hr);
+    for (UINT i = 0; i < size; ++i)
+        source[i] = static_cast<std::uint8_t>((i * 37u + 11u) & 255u);
+    upload->Unmap(0, nullptr);
+
+    hr = device->CreateCommandAllocator(
+        D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator));
+    if (FAILED(hr)) return fail("allocator", hr);
+    hr = device->CreateCommandList(
+        0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator.Get(), nullptr,
+        IID_PPV_ARGS(&list));
+    if (FAILED(hr)) return fail("command_list", hr);
+
+    list->CopyBufferRegion(gpu.Get(), 0, upload.Get(), 0, size);
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = gpu.Get();
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+    list->ResourceBarrier(1, &barrier);
+    list->CopyBufferRegion(readback.Get(), 0, gpu.Get(), 0, size);
+
+    hr = list->Close();
+    if (FAILED(hr)) return fail("close", hr);
+    ID3D12CommandList* commandLists[] = {list.Get()};
+    queue->ExecuteCommandLists(1, commandLists);
+
+    hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+    if (FAILED(hr)) return fail("fence", hr);
+    eventHandle = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    if (!eventHandle) {
+        result.note = "event_creation_failed";
+        return result;
+    }
+    hr = queue->Signal(fence.Get(), 1);
+    if (FAILED(hr)) return fail("signal", hr);
+    if (!wait_for_fence(fence.Get(), 1, eventHandle)) {
+        CloseHandle(eventHandle);
+        result.note = "fence_wait_failed";
+        return result;
+    }
+
+    const D3D12_RANGE readRange{0, static_cast<SIZE_T>(size)};
+    std::uint8_t* actual = nullptr;
+    hr = readback->Map(0, &readRange, reinterpret_cast<void**>(&actual));
+    if (FAILED(hr)) return fail("map_readback", hr);
+
+    bool matches = true;
+    for (UINT i = 0; i < size; ++i) {
+        const auto expected = static_cast<std::uint8_t>((i * 37u + 11u) & 255u);
+        if (actual[i] != expected) {
+            matches = false;
+            break;
+        }
+    }
+    const D3D12_RANGE noWrite{0, 0};
+    readback->Unmap(0, &noWrite);
+    CloseHandle(eventHandle);
+
+    result.success = matches;
+    result.note = matches ? "upload_copy_barrier_readback_verified"
+                          : "readback_mismatch";
+    return result;
 }
 
 int main(int argc, char** argv) {
