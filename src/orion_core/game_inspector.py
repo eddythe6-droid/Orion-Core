@@ -14,6 +14,7 @@ from typing import Any
 from .pe_analyzer import analyze_pe, PEFormatError
 from .iso9660 import inspect_iso9660, ISO9660Error
 from .xdvdfs import inspect_xdvdfs, XDVDFSError
+from .stfs import inspect_stfs, inspect_svod_directory, STFSError
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -108,6 +109,12 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 header = stream.read(16)
             kind = _classify(file_path, header)
             pe_analysis = None
+            stfs_metadata = None
+            if kind == "xbox_stfs":
+                try:
+                    stfs_metadata = inspect_stfs(file_path)
+                except STFSError as exc:
+                    stfs_metadata = {"valid_header": False, "error": str(exc)}
             if kind == "pe_dos_header":
                 try:
                     pe_analysis = analyze_pe(file_path)
@@ -120,6 +127,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 "detected_type": kind,
                 "sha256": _sha256(file_path, stat.st_size) if hash_files else None,
                 "pe_analysis": pe_analysis,
+                "stfs_metadata": stfs_metadata,
             })
             counts[kind] = counts.get(kind, 0) + 1
         except OSError as exc:
@@ -127,6 +135,8 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
 
     iso_report = None
     xdvdfs_report = None
+    stfs_report = None
+    svod_report = None
     if target.is_file():
         if target.suffix.lower() in (".iso", ".xiso"):
             try:
@@ -182,9 +192,21 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                         counts[kind] = counts.get(kind, 0) + 1
             except (OSError, zipfile.BadZipFile) as exc:
                 raise GameInspectionError(f"cannot inspect archive: {type(exc).__name__}") from exc
+        elif target.open("rb").read(4) in (b"CON ", b"LIVE", b"PIRS"):
+            try:
+                stfs_report = inspect_stfs(target)
+            except STFSError as exc:
+                warnings.append(f"STFS parser: {exc}")
+                add_file(target, target.name)
         else:
             add_file(target, target.name)
     elif target.is_dir():
+        try:
+            svod_report = inspect_svod_directory(target)
+            if not svod_report["containers"]:
+                svod_report = None
+        except STFSError as exc:
+            warnings.append(f"SVOD parser: {exc}")
         for root, dirs, files in os.walk(target, followlinks=False):
             dirs[:] = sorted(d for d in dirs if not (Path(root) / d).is_symlink())
             for filename in sorted(files):
@@ -208,6 +230,8 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         "files": records,
         "iso9660": iso_report,
         "xdvdfs": xdvdfs_report,
+        "stfs": stfs_report,
+        "svod": svod_report,
         "warnings": warnings,
         "scope": "read_only_file_inventory_and_basic_signatures",
         "extraction_performed": False,
