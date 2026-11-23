@@ -69,3 +69,16 @@ python -m orion_core --compare-gpus .\\gpu-a.json .\\gpu-b.json
 ```
 
 Each input must contain exactly one hardware D3D12 adapter. The comparison orders known feature/tier values, compares reported boolean capabilities, and reports raw RGBA8 support-mask bit differences. Explicit `not_supported` is treated as a known lower tier; `unknown` remains unknown. The masks are not decoded into usage claims, and no performance or game-compatibility conclusion is produced.
+
+
+## GPU memory budget snapshot
+
+The native probe also attempts DXGI `IDXGIAdapter3::QueryVideoMemoryInfo` for the local and non-local memory segments. It records the current budget, current usage, and available-for-reservation value, along with a per-pool query flag. These are dynamic OS/driver budget values, not the board's physical VRAM capacity. Non-local memory refers to system-memory budget available to the GPU, not dedicated VRAM.
+
+Analyze the snapshot with:
+
+```powershell
+python -m orion_core --gpu-memory-json .\\gpu-report.json
+```
+
+The report classifies usage against the reported budget (low <70%, moderate 70–<90%, high 90–100%, over-budget >100%). Missing or zero budgets remain unknown. The deterministic Python allocation pool is a simulation only; it does not allocate GPU memory or reproduce driver eviction.
