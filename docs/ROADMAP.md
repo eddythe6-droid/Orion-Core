@@ -93,7 +93,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 
 - [x] Read-only ISO9660 volume and directory inventory.
 - [x] Read-only XDVDFS/XISO volume descriptor and binary-tree directory inventory for standard sector-32 and rebuilt sector-0 layouts.
-- [ ] Detect Xbox 360 XGD1/XGD2/XGD3 partition offsets and hybrid layouts.
+- [x] Detect common XGD1/XGD2/XGD3 game-partition offsets; hybrid and variable-offset variants remain open.
 - [ ] Inspect STFS/SVOD containers and their relationship to embedded XDVDFS data.
 - [ ] Validate parsers against legally obtained, unprotected sample images and record format coverage.
 
