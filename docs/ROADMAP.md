@@ -45,11 +45,15 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Fence-aware descriptor heap range allocator with multi-queue retirement (simulation only)
 - [x] Integrate descriptor heap lifetime into GPU resource manager snapshot
 - [x] Resource writer-queue ownership tracking with fence-linked handoff records (simulation only)
+- [x] Declarative graphics pipeline description and structural validation (native PSO validation pending)
+- [x] Shader feature requirement assessment against reported D3D12 probe capabilities (bytecode validation pending)
 - [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
 - [ ] Reproducible hardware test results with timestamps and environment metadata
 - [ ] Exportable compatibility reports
+- [ ] Native PSO creation tests using supplied shader bytecode and complete pipeline state
+- [ ] Render-target format support interpretation using verified SDK flag definitions
 
 ## Later
 - [ ] Optional user-approved tests for specific software
