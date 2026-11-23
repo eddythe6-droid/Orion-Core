@@ -31,10 +31,10 @@ def make_xiso(path, *, rebuilt=False):
     descriptor[0x7EC:0x800] = MAGIC
     root = bytearray(2048)
     file_entry = make_entry("default.xbe", 50, 4096, 0x20)
-    dir_entry = make_entry("MEDIA", 42, 2048, 0x10)
+    dir_entry = make_entry("MEDIA", 42, 2048, 0x10, right=5)
     # The right child is stored at DWORD offset 4 (byte offset 4 * 4).
     root[:len(dir_entry)] = dir_entry
-    child_offset = 4 * 4
+    child_offset = 5 * 4
     root[child_offset:child_offset + len(file_entry)] = file_entry
     image[root_sector * 2048:root_sector * 2048 + root_size] = root
     child = bytearray(2048)
