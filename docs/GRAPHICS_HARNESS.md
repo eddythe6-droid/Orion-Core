@@ -25,3 +25,10 @@ A later native Windows validation sample should use public D3D12 APIs to query t
 - Descriptor ranges in heaps must not be modified while in-flight GPU work may reference them. See [Microsoft's advanced descriptor table guidance](https://learn.microsoft.com/en-us/windows/win32/direct3d12/advanced-use-of-descriptor-tables).
 
 The simulator captures only selected invariants from these public PC concepts. It does not assert parity with Xbox D3D12.x or any particular game's renderer.
+
+
+## Resource transition state tracker
+
+The simulator also includes `ResourceStateTracker`, a deterministic bookkeeping model for explicit per-resource transitions. It validates the caller-supplied before-state against the tracked state, records valid transitions, and rejects unknown resources, duplicate registrations, mismatched before-states, and no-op transitions.
+
+This is intentionally not a full D3D12 barrier implementation. It does not model subresources, split barriers, aliasing barriers, UAV ordering, queue ownership, implicit promotion/decay, command-list execution, or GPU memory visibility. A passing simulator test is not evidence of actual driver behavior.
