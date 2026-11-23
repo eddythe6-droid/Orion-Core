@@ -25,6 +25,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Add schema compatibility tests and a documented schema migration policy
 
 ## Milestone 0.4 — Compatibility test harness
+- [x] Initial hardware-independent graphics lifetime simulator (queue/fence, residency budget, descriptor retirement)
 - [ ] Declarative, read-only checks
 - [ ] Reproducible test results with timestamps and environment metadata
 - [ ] Exportable compatibility reports
