@@ -141,6 +141,47 @@ _RECORDS = (
         source_title="Developing a new title with the GDK in Visual Studio",
         notes="Shared source code is not equivalent to binary compatibility or zero porting work.",
     ),
+
+    EvidenceRecord(
+        claim_id="GDK-INPUT-001",
+        subsystem="input",
+        claim="GameInput is available on Xbox and supported Windows versions, with a shared API surface distributed through the Microsoft.GameInput NuGet package.",
+        platform="both",
+        classification="common",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/input/overviews/input-faq?view=gdk-2604",
+        source_title="GameInput frequently asked questions",
+        notes="Runtime deployment differs: PC requires the redistributable or a supported sideloaded runtime; Xbox includes the runtime in Game OS. Available API versions depend on GDK/runtime version.",
+    ),
+    EvidenceRecord(
+        claim_id="GDK-SAVE-001",
+        subsystem="save_data",
+        claim="The GDK XGameSave API is supported on PC and Xbox for per-user game-save storage and cloud synchronization.",
+        platform="both",
+        classification="common",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/game-save/game-saves-developer-guide?view=gdk-2604",
+        source_title="Game Saves developer guide",
+        notes="The storage and user lifecycle still differ by endpoint; the guide documents PC and console user-model behavior separately.",
+    ),
+    EvidenceRecord(
+        claim_id="GDK-FILE-001",
+        subsystem="file_io",
+        claim="Win32 File I/O APIs are part of the GDK common programming model for Windows PC and Xbox.",
+        platform="both",
+        classification="common",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/xbox/gdk/docs/gdk-dev/intro/introduction?view=gdk-2604",
+        source_title="What is the Microsoft Game Development Kit?",
+        notes="Common API availability does not imply identical package paths, access permissions, save locations, or deployment layout.",
+    ),
+
 )
 
 
