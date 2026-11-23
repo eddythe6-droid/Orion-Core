@@ -46,3 +46,7 @@ python -m orion_core --capabilities-json
 ```
 
 The catalogue distinguishes documented common APIs from platform-specific extensions and preserves unknowns rather than guessing. It describes public platform contracts, not the implementation details of any particular game. See [the capability research report](docs/RESEARCH_CAPABILITY_CATALOG.md).
+
+## Synthetic graphics harness
+
+A hardware-independent model for D3D12-inspired queue/fence lifetime, residency-budget and descriptor-range invariants is available in `orion_core.graphics_harness`. It is a simulator for testing Orion-Core abstractions, not a GPU driver or Xbox emulator. See [the harness notes](docs/GRAPHICS_HARNESS.md) and [the graphics deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md).
