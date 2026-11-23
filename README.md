@@ -36,3 +36,13 @@ The current Windows collector reads CPU and display-adapter properties through C
 The tool is read-only: it does not change registry values, install software or drivers, run downloaded executables, or collect device serial numbers, MAC addresses, usernames, hostnames, or personal files.
 
 See [ROADMAP](docs/ROADMAP.md), [SAFETY](docs/SAFETY.md), and the [agent team charter](docs/AGENT_TEAM.md). Role prompts for compatible coding-agent environments are stored in `.github/agents/`.
+
+## Platform capability catalogue
+
+Export the curated, source-backed Xbox/Windows PC capability inventory:
+
+```bash
+python -m orion_core --capabilities-json
+```
+
+The catalogue distinguishes documented common APIs from platform-specific extensions and preserves unknowns rather than guessing. It describes public platform contracts, not the implementation details of any particular game. See [the capability research report](docs/RESEARCH_CAPABILITY_CATALOG.md).
