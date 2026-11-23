@@ -82,3 +82,11 @@ python -m orion_core --gpu-memory-json .\\gpu-report.json
 ```
 
 The report classifies usage against the reported budget (low <70%, moderate 70–<90%, high 90–100%, over-budget >100%). Missing or zero budgets remain unknown. The deterministic Python allocation pool is a simulation only; it does not allocate GPU memory or reproduce driver eviction.
+
+
+The probe also attempts a native binding smoke test per hardware adapter. It
+creates an empty root signature and shader-visible CBV/SRV/UAV and sampler
+descriptor heaps, and reports creation outcomes plus descriptor increments.
+These checks do **not** populate descriptors, bind heaps/root signatures to a
+command list, create a pipeline state object, compile shaders, or execute a
+draw/dispatch. A successful result therefore confirms object creation only.
