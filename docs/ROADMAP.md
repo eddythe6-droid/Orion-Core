@@ -37,7 +37,8 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] DXGI local/non-local memory budget snapshot and conservative pressure summary
 - [x] Deterministic GPU memory allocation-pressure simulation (not a driver emulator)
 - [x] Deterministic priority-based resource streaming and eviction policy simulation
-- [x] Fence-aware upload lifecycle simulation with pending resources protected until copy-fence completion\n- [ ] Reproducible runtime test results with timestamps and environment metadata
+- [x] Fence-aware upload lifecycle simulation with pending resources protected until copy-fence completion
+- [x] Multi-queue fence tracking and deferred resource retirement simulation\n- [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
 - [ ] Reproducible hardware test results with timestamps and environment metadata
