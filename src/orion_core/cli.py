@@ -9,6 +9,7 @@ from .system_info import collect_system_info
 from .platform_catalog import load_platform_inventory
 from .capability import assess_compatibility
 from .windows_info import collect_windows_diagnostics
+from .report import collect_diagnostics_report
 
 
 def main() -> None:
@@ -36,9 +37,9 @@ def main() -> None:
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return
 
-    report = {"system": collect_system_info()}
-    if not args.basic_only:
-        report["windows_diagnostics"] = collect_windows_diagnostics()
+    report = collect_diagnostics_report()
+    if args.basic_only:
+        report["windows_diagnostics"] = {"supported": False, "reason": "Skipped by --basic-only"}
 
     if args.json:
         print(json.dumps(report, indent=2, ensure_ascii=False))
