@@ -62,6 +62,8 @@ class GPUResourceManager:
         return self.states.transition(resource_id, before, after)
 
     def submit_use(self, resource_id: str, queue_name: str) -> FencePoint:
+        # Validate the queue argument before resource readiness to keep API errors deterministic.
+        self.queues.get(queue_name)
         resource = self._active(resource_id)
         self._require_resident(resource_id)
         if queue_name == "copy":
