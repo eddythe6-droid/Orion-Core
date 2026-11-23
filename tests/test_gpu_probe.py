@@ -119,3 +119,23 @@ def test_unavailable_format_query_keeps_null_masks():
         "support1": None, "support2": None,
     }]
     assert validate_probe_report(report)["adapters"][0]["formats"][0]["support1"] is None
+
+
+
+def test_resource_copy_smoke_fields_are_validated_and_summarized():
+    report = sample_report()
+    adapter = report["adapters"][0]
+    adapter["resource_copy_smoke_test"] = True
+    adapter["resource_copy_smoke_note"] = "upload_copy_barrier_readback_verified"
+    summary = summarize_probe_report(report)
+    assert summary["adapters"][0]["resource_copy_smoke_test"] is True
+    assert summary["adapters"][0]["resource_copy_smoke_note"] == "upload_copy_barrier_readback_verified"
+
+    adapter["resource_copy_smoke_test"] = "true"
+    with pytest.raises(ProbeReportError, match="resource_copy_smoke_test"):
+        validate_probe_report(report)
+
+    adapter["resource_copy_smoke_test"] = False
+    adapter["resource_copy_smoke_note"] = None
+    with pytest.raises(ProbeReportError, match="resource_copy_smoke_note"):
+        validate_probe_report(report)
