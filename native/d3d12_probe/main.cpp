@@ -77,6 +77,35 @@ static const char* shader_model_name(D3D_SHADER_MODEL model) {
     }
 }
 
+static const char* format_name(DXGI_FORMAT format) {
+    switch (format) {
+    case DXGI_FORMAT_R8G8B8A8_UNORM: return "R8G8B8A8_UNORM";
+    case DXGI_FORMAT_B8G8R8A8_UNORM: return "B8G8R8A8_UNORM";
+    case DXGI_FORMAT_R16G16B16A16_FLOAT: return "R16G16B16A16_FLOAT";
+    case DXGI_FORMAT_R32_FLOAT: return "R32_FLOAT";
+    case DXGI_FORMAT_D32_FLOAT: return "D32_FLOAT";
+    case DXGI_FORMAT_BC1_UNORM: return "BC1_UNORM";
+    case DXGI_FORMAT_BC7_UNORM: return "BC7_UNORM";
+    default: return "UNKNOWN";
+    }
+}
+
+static std::string query_format_support(ID3D12Device* device, DXGI_FORMAT format) {
+    D3D12_FEATURE_DATA_FORMAT_SUPPORT support{};
+    support.Format = format;
+    const bool available = SUCCEEDED(device->CheckFeatureSupport(
+        D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support)));
+    std::ostringstream out;
+    out << "{\"format\":\"" << format_name(format)
+        << "\",\"query_available\":" << (available ? "true" : "false")
+        << ",\"support1\":";
+    if (available) out << support.Support1; else out << "null";
+    out << ",\"support2\":";
+    if (available) out << support.Support2; else out << "null";
+    out << "}";
+    return out.str();
+}
+
 static bool wait_for_fence(ID3D12Fence* fence, UINT64 value, HANDLE eventHandle) {
     if (fence->GetCompletedValue() >= value) return true;
     if (FAILED(fence->SetEventOnCompletion(value, eventHandle))) return false;
@@ -195,6 +224,15 @@ int main(int argc, char** argv) {
         const bool rgba8FormatQueryAvailable = SUCCEEDED(device->CheckFeatureSupport(
             D3D12_FEATURE_FORMAT_SUPPORT, &rgba8Support, sizeof(rgba8Support)));
 
+        const std::array<DXGI_FORMAT, 7> queriedFormats = {
+            DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM,
+            DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R32_FLOAT,
+            DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_BC1_UNORM, DXGI_FORMAT_BC7_UNORM
+        };
+        std::vector<std::string> formatReports;
+        for (const auto format : queriedFormats)
+            formatReports.push_back(query_format_support(device.Get(), format));
+
         D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5{};
         const bool options5Available = SUCCEEDED(device->CheckFeatureSupport(
             D3D12_FEATURE_D3D12_OPTIONS5, &options5, sizeof(options5)));
@@ -269,6 +307,12 @@ int main(int argc, char** argv) {
              << ",\"rgba8_format_query_available\":" << (rgba8FormatQueryAvailable ? "true" : "false")
              << ",\"rgba8_support1\":" << (rgba8FormatQueryAvailable ? std::to_string(rgba8Support.Support1) : "null")
              << ",\"rgba8_support2\":" << (rgba8FormatQueryAvailable ? std::to_string(rgba8Support.Support2) : "null")
+             << ",\"formats\":[";
+        for (size_t formatIndex = 0; formatIndex < formatReports.size(); ++formatIndex) {
+            if (formatIndex) item << ",";
+            item << formatReports[formatIndex];
+        }
+        item << "]"
              << ",\"options5_query_available\":" << (options5Available ? "true" : "false")
              << ",\"raytracing_tier\":\"" << (options5Available ? raytracingTier : "unknown") << "\""
              << ",\"options7_query_available\":" << (options7Available ? "true" : "false")
