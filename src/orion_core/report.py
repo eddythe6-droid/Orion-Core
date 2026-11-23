@@ -14,6 +14,7 @@ REPORT_SCHEMA_VERSION = "1.0"
 
 def collect_diagnostics_report() -> dict[str, Any]:
     """Collect a timestamped, read-only report with environment metadata."""
+    system = collect_system_info()
     return {
         "report_schema_version": REPORT_SCHEMA_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -22,10 +23,10 @@ def collect_diagnostics_report() -> dict[str, Any]:
             "version": __version__,
         },
         "environment": {
-            "python_version": collect_system_info()["python"]["version"],
-            "python_implementation": collect_system_info()["python"]["implementation"],
+            "python_version": system["python"]["version"],
+            "python_implementation": system["python"]["implementation"],
         },
-        "system": collect_system_info(),
+        "system": system,
         "windows_diagnostics": collect_windows_diagnostics(),
         "validation": {
             "hardware_runtime_tests_performed": False,
