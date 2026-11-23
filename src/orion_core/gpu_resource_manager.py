@@ -9,6 +9,7 @@ from .resource_streaming import ResourcePriority, ResourceStatus
 from .streaming_gpu import FenceAwareStreamingEngine
 from .queue_sync import QueueSynchronizer
 from .descriptor_heap import DescriptorHeapManager
+from .resource_ownership import ResourceOwnershipTracker
 
 
 @dataclass(slots=True)
@@ -41,6 +42,7 @@ class GPUResourceManager:
         self.deferred = DeferredReleaseQueue(self.queues)
         self.synchronizer = QueueSynchronizer(self.queues)
         self.descriptors = DescriptorHeapManager(4096, self.queues)
+        self.ownership = ResourceOwnershipTracker()
         self.resources: dict[str, ManagedResource] = {}
 
     def request(self, resource_id: str, size_bytes: int,
@@ -52,6 +54,7 @@ class GPUResourceManager:
         managed = ManagedResource(resource_id, size_bytes)
         self.resources[resource_id] = managed
         self.states.register(resource_id, ResourceState.COMMON)
+        self.ownership.register(resource_id)
         return managed
 
     def submit_next_upload(self) -> FencePoint | None:
@@ -92,6 +95,10 @@ class GPUResourceManager:
         point = self.synchronizer.submit(queue_name)
         resource.last_use[queue_name] = point
         if access == "write":
+            previous_owner = self.ownership.owner_of(resource_id)
+            if previous_owner != queue_name:
+                dependency = resource.last_use.get(previous_owner) if previous_owner else None
+                self.ownership.transfer(resource_id, queue_name, dependency)
             resource.last_writer = point
             resource.last_readers.clear()
         else:
@@ -150,6 +157,7 @@ class GPUResourceManager:
             "deferred_release": self.deferred.snapshot(),
             "queue_synchronization": self.synchronizer.snapshot(),
             "descriptor_heap": self.descriptors.snapshot(),
+            "resource_ownership": self.ownership.snapshot(),
             "simulation_only": True,
             "gpu_commands_executed": False,
             "gpu_resources_created_or_destroyed": False,
