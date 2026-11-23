@@ -108,3 +108,56 @@ def test_resource_state_tracker_rejects_unknown_and_duplicate_resources():
     tracker.register("buffer", ResourceState.COMMON)
     with pytest.raises(ValueError, match="unique"):
         tracker.register("buffer", ResourceState.COPY_DEST)
+
+
+def test_subresource_tracker_transitions_individual_and_all_subresources():
+    from orion_core.graphics_harness import ResourceState, SubresourceStateTracker
+
+    tracker = SubresourceStateTracker()
+    tracker.register("texture", 3, ResourceState.COMMON)
+    first = tracker.transition(
+        "texture", ResourceState.COMMON, ResourceState.COPY_DEST, subresource=1
+    )
+    assert tracker.state_of("texture") == (
+        ResourceState.COMMON, ResourceState.COPY_DEST, ResourceState.COMMON
+    )
+    assert tracker.state_of("texture", 1) == ResourceState.COPY_DEST
+
+    second = tracker.transition(
+        "texture", ResourceState.COMMON, ResourceState.SHADER_RESOURCE
+    )
+    assert tracker.state_of("texture") == (
+        ResourceState.SHADER_RESOURCE,
+        ResourceState.COPY_DEST,
+        ResourceState.SHADER_RESOURCE,
+    )
+    assert tracker.history == (first, second)
+
+
+def test_subresource_tracker_all_transition_is_atomic_on_state_mismatch():
+    from orion_core.graphics_harness import ResourceState, SubresourceStateTracker
+
+    tracker = SubresourceStateTracker()
+    tracker.register("texture", 2, ResourceState.COMMON)
+    tracker.transition("texture", ResourceState.COMMON, ResourceState.COPY_DEST, 0)
+    with pytest.raises(ValueError, match="before-state mismatch"):
+        tracker.transition("texture", ResourceState.COMMON, ResourceState.SHADER_RESOURCE)
+    assert tracker.state_of("texture") == (
+        ResourceState.COPY_DEST, ResourceState.COMMON
+    )
+    assert len(tracker.history) == 1
+
+
+def test_subresource_tracker_validates_registration_and_indices():
+    from orion_core.graphics_harness import ResourceState, SubresourceStateTracker
+
+    tracker = SubresourceStateTracker()
+    with pytest.raises(ValueError, match="positive integer"):
+        tracker.register("empty", 0, ResourceState.COMMON)
+    with pytest.raises(TypeError):
+        tracker.register("bool-count", True, ResourceState.COMMON)
+    tracker.register("texture", 2, ResourceState.COMMON)
+    with pytest.raises(IndexError, match="out of range"):
+        tracker.state_of("texture", 2)
+    with pytest.raises(TypeError, match="integer"):
+        tracker.state_of("texture", 1.5)
