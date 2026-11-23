@@ -6,18 +6,24 @@ import argparse
 import json
 
 from .system_info import collect_system_info
+from .platform_catalog import load_platform_inventory
 from .windows_info import collect_windows_diagnostics
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Collect a read-only system report.")
-    parser.add_argument("--json", action="store_true", help="Print the report as JSON.")
+    parser.add_argument("--json", action="store_true", help="Print the system report as JSON.")
+    parser.add_argument("--capabilities-json", action="store_true", help="Export the curated Xbox/Windows platform capability catalogue as JSON.")
     parser.add_argument(
         "--basic-only",
         action="store_true",
         help="Skip Windows-specific hardware and graphics inventory.",
     )
     args = parser.parse_args()
+
+    if args.capabilities_json:
+        print(json.dumps(load_platform_inventory().to_dict(), indent=2, ensure_ascii=False))
+        return
 
     report = {"system": collect_system_info()}
     if not args.basic_only:
