@@ -40,7 +40,9 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Deterministic priority-based resource streaming and eviction policy simulation
 - [x] Fence-aware upload lifecycle simulation with pending resources protected until copy-fence completion
 - [x] Multi-queue fence tracking and deferred resource retirement simulation
-- [x] Explicit inter-queue producer-fence wait model with dependency-cycle detection (simulation only)\n- [ ] Reproducible runtime test results with timestamps and environment metadata
+- [x] Explicit inter-queue producer-fence wait model with dependency-cycle detection (simulation only)
+- [x] Integrate explicit queue dependencies into the GPU resource manager (simulation only)
+- [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
 - [ ] Reproducible hardware test results with timestamps and environment metadata
