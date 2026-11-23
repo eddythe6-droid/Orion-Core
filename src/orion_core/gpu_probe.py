@@ -51,6 +51,19 @@ def validate_probe_report(raw: Any) -> dict[str, Any]:
                     "raytracing_tier", "mesh_shader_tier", "sampler_feedback_tier"):
             if key in adapter and adapter[key] is not None and not isinstance(adapter[key], str):
                 raise ProbeReportError(f"adapter {index} {key} must be a string or null")
+        memory = adapter.get("video_memory", {})
+        if not isinstance(memory, dict):
+            raise ProbeReportError(f"adapter {index} video_memory must be an object")
+        for pool_name in ("local", "non_local"):
+            pool = memory.get(pool_name)
+            if pool is None:
+                continue
+            if not isinstance(pool, dict) or not isinstance(pool.get("query_available"), bool):
+                raise ProbeReportError(f"adapter {index} {pool_name} memory record is malformed")
+            for field in ("budget_bytes", "current_usage_bytes", "available_for_reservation_bytes"):
+                value = pool.get(field)
+                if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value < 0):
+                    raise ProbeReportError(f"adapter {index} {pool_name} {field} must be a non-negative integer or null")
         formats = adapter.get("formats", [])
         if not isinstance(formats, list):
             raise ProbeReportError(f"adapter {index} formats must be a list")
@@ -187,5 +200,25 @@ def compare_gpu_adapters(left: dict[str, Any], right: dict[str, Any]) -> dict[st
             "Does not measure performance or current memory budget.",
             "Raw format support masks are not decoded into specific usage claims.",
             "Does not establish Xbox D3D12.x support or game compatibility.",
+        ],
+    }
+
+
+def summarize_gpu_memory(report: dict[str, Any]) -> dict[str, Any]:
+    """Return memory budget pressure summaries for each hardware D3D12 adapter."""
+    from .gpu_memory import analyze_probe_memory
+
+    validated = validate_probe_report(report)
+    return {
+        "schema_version": GPU_PROBE_SCHEMA_VERSION,
+        "adapters": [
+            analyze_probe_memory(adapter)
+            for adapter in validated["adapters"]
+            if adapter.get("d3d12_device") and not adapter.get("software")
+        ],
+        "limitations": [
+            "DXGI memory budget and usage are dynamic snapshots, not physical VRAM capacity.",
+            "Non-local memory is system memory available to the GPU, not dedicated VRAM.",
+            "No allocation stress test or driver eviction behavior is performed.",
         ],
     }
