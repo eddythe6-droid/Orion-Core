@@ -22,6 +22,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Machine-readable capability inventory with schema version
 - [x] Conservative Windows PC/Xbox support assessment; unknown remains unknown
 - [x] Populate the inventory from official Microsoft GDK documentation
+- [x] Add evidence-backed input, save-data, and common file-I/O contracts
 - [x] Add JSON CLI export for the curated capability catalogue
 - [ ] Add schema compatibility tests and a documented schema migration policy
 
