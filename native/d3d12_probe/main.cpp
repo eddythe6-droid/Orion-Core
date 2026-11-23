@@ -473,7 +473,7 @@ int main(int argc, char** argv) {
              << ",\"sampler_feedback_tier\":\"" << (options7Available ? samplerFeedbackTier : "unknown") << "\""
              << ",\"direct_queue_fence_test\":" << (queueFenceTest ? "true" : "false")
              << ",\"queue_test_note\":\"" << json_escape(queueError) << "\""
-             << ",\"resource_copy_smoke_test\": << (resourceSmoke.success ? "true" : "false")
+             << ",\"resource_copy_smoke_test\":" << (resourceSmoke.success ? "true" : "false")
              << ",\"resource_copy_smoke_note\":\"" << json_escape(resourceSmoke.note) << "\"}";
         adapterReports.push_back(item.str());
     }
