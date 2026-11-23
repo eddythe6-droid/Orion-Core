@@ -71,7 +71,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Save console log and export diagnostic JSON
 - [x] Launch a user-selected native D3D12 probe executable and validate its JSON report
 - [x] Include native GPU probe data in the combined diagnostic JSON export
-- [ ] Stream per-stage native probe progress into the console (probe currently emits its report at completion)
+- [x] Stream native `[ORION_PROGRESS]` events from standard error into the live console
 - [ ] Add dedicated GPU, memory, CPU, evidence, and compatibility views
 - [ ] Package a Windows desktop build and validate on physical hardware
 
