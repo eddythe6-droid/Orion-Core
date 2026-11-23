@@ -11,6 +11,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from .pe_analyzer import analyze_pe, PEFormatError
+
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
 MAX_ARCHIVE_MEMBERS = 50_000
@@ -103,12 +105,19 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
             with file_path.open("rb") as stream:
                 header = stream.read(16)
             kind = _classify(file_path, header)
+            pe_analysis = None
+            if kind == "pe_dos_header":
+                try:
+                    pe_analysis = analyze_pe(file_path)
+                except PEFormatError as exc:
+                    pe_analysis = {"valid_pe_structure": False, "error": str(exc)}
             records.append({
                 "path": relative,
                 "size_bytes": stat.st_size,
                 "extension": file_path.suffix.lower(),
                 "detected_type": kind,
                 "sha256": _sha256(file_path, stat.st_size) if hash_files else None,
+                "pe_analysis": pe_analysis,
             })
             counts[kind] = counts.get(kind, 0) + 1
         except OSError as exc:
