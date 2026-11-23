@@ -6,7 +6,7 @@ The first game-file workflow is a conservative, read-only inventory tool.
 - Recursively inventories regular files in a directory without following symbolic links.
 - Reads only a short header from regular files to identify a small set of well-known signatures.
 - Lists members of ZIP-compatible archives using metadata only; it never extracts members.
-- Reads ISO9660 primary volume descriptors and recursively inventories directory entries in `.iso` images without mounting or extracting them.
+- Detects and inventories XDVDFS/XISO volume descriptors and directory trees in standard sector-32 and rebuilt sector-0 `.iso`/`.xiso` images; falls back to ISO9660 for ordinary `.iso` images. No mounting or extraction.
 - Optionally computes SHA-256 for regular files up to 64 MiB.
 - Writes a machine-readable JSON report.
 - Parses core PE headers for MZ candidates: architecture, PE32/PE32+, image base, entry point, subsystem, sections, and imported DLL names when the import table is safely mappable.
@@ -22,4 +22,4 @@ PowerShell examples:
 - python -m orion_core --inspect-game-path "D:\GameFiles" --inspect-output ".\game-inventory.json"
 - python -m orion_core --inspect-game-path ".\disc.zip" --inspect-hash-files
 
-Archive and ISO member listing is metadata-only. ISO9660 support does not imply support for Xbox-specific XDVDFS layouts. The tool applies file/member limits to avoid unbounded scans.
+Archive and ISO member listing is metadata-only. XDVDFS support currently covers the standard sector-32 layout and rebuilt sector-0 images only; it does not yet identify every Xbox 360 partition/container layout (such as XGD2/XGD3 offsets or SVOD/STFS wrappers). A successful directory listing is metadata inspection, not proof that the game can run on Windows. The tool applies file/member limits to avoid unbounded scans.
