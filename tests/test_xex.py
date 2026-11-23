@@ -20,10 +20,9 @@ def make_xex(path):
     ]
     for i, (key, value) in enumerate(headers):
         struct.pack_into(">II", data, 0x18 + i * 8, key, value)
-    struct.pack_into(">I", data, 0x40, 0x18)
-    struct.pack_into(">IIII", data, 0x44, 0xAABBCCDD, 1, 2, 0x4D530001)
-    data[0x54:0x58] = bytes((2, 0, 1, 2))
-    struct.pack_into(">I", data, 0x58, 99)
+    struct.pack_into(">IIII", data, 0x40, 0xAABBCCDD, 1, 2, 0x4D530001)
+    data[0x50:0x54] = bytes((2, 0, 1, 2))
+    struct.pack_into(">I", data, 0x54, 99)
     struct.pack_into(">I", data, 0x70, 8)
     path.write_bytes(data)
 
