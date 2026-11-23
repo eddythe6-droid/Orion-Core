@@ -178,10 +178,41 @@ class OrionDashboard:
                     hardware = [item for item in adapters if not item.get("software") and item.get("d3d12_device")]
                     if hardware:
                         self.card_values["gpu"].set(hardware[0]["name"])
-                    self.overview_text.set(
-                        "Нативный D3D12-отчёт получен. Это проверка возможностей Windows/D3D12 и smoke-тестов; "
-                        "совместимость Xbox-игр не устанавливается."
-                    )
+                    if hardware:
+                        adapter = hardware[0]
+                        memory = adapter.get("video_memory", {}).get("local", {})
+                        budget = memory.get("budget_bytes")
+                        usage = memory.get("current_usage_bytes")
+                        memory_line = (
+                            f"Локальная видеопамять: бюджет {budget / (1024 ** 3):.2f} ГиБ, "
+                            f"занято {usage / (1024 ** 3):.2f} ГиБ."
+                            if isinstance(budget, int) and isinstance(usage, int)
+                            else "Локальная видеопамять: данные бюджета недоступны."
+                        )
+                        tests = (
+                            ("Очередь/fence", adapter.get("direct_queue_fence_test")),
+                            ("Копирование/readback", adapter.get("resource_copy_smoke_test")),
+                            ("Root signature", adapter.get("root_signature_smoke_test")),
+                            ("Рендер/readback", adapter.get("render_smoke_test")),
+                        )
+                        test_lines = "\\n".join(
+                            f"{label}: {'OK' if value is True else 'ОШИБКА' if value is False else 'НЕТ ДАННЫХ'}"
+                            for label, value in tests
+                        )
+                        details = (
+                            f"GPU: {adapter['name']}\\n"
+                            f"Feature Level: {adapter.get('feature_level', 'unknown')} | "
+                            f"Shader Model: {adapter.get('shader_model', 'unknown')} | "
+                            f"Binding Tier: {adapter.get('resource_binding_tier', 'unknown')}\\n"
+                            f"{memory_line}\\n{test_lines}\\n\\n"
+                            "Это Windows D3D12 runtime-проверка, а не подтверждение совместимости Xbox-игр."
+                        )
+                    else:
+                        details = (
+                            "D3D12-отчёт получен, но аппаратный адаптер не прошёл создание D3D12 device. "
+                            "Совместимость Xbox-игр не устанавливается."
+                        )
+                    self.overview_text.set(details)
                 elif kind == "gpu_done":
                     self.scan_button.configure(state="normal")
                     self.gpu_button.configure(state="normal")
