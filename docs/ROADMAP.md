@@ -36,7 +36,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Compare two native D3D12 adapter reports conservatively (feature tiers, boolean features, raw format masks)
 - [x] DXGI local/non-local memory budget snapshot and conservative pressure summary
 - [x] Deterministic GPU memory allocation-pressure simulation (not a driver emulator)
-- [ ] Reproducible runtime test results with timestamps and environment metadata
+- [x] Deterministic priority-based resource streaming and eviction policy simulation\n- [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
 - [ ] Reproducible hardware test results with timestamps and environment metadata
