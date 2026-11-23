@@ -78,3 +78,21 @@ def test_game_inspector_recognizes_iso9660_images(tmp_path):
     report = inspect_game_path(tmp_path / "sample.iso")
     assert report["source_kind"] == "iso9660"
     assert report["iso9660"]["format"] == "ISO9660"
+
+
+def test_game_inspector_prefers_xdvdfs_over_iso9660(tmp_path):
+    import struct
+
+    image = bytearray(33 * 2048)
+    descriptor = memoryview(image)[32 * 2048:33 * 2048]
+    magic = b"MICROSOFT*XBOX*MEDIA"
+    descriptor[:20] = magic
+    struct.pack_into("<IIQ", descriptor, 0x14, 0, 0, 0)
+    descriptor[0x7EC:0x800] = magic
+    source = tmp_path / "xbox-game.iso"
+    source.write_bytes(image)
+
+    report = inspect_game_path(source)
+    assert report["source_kind"] == "xdvdfs"
+    assert report["xdvdfs"]["format"] == "XDVDFS"
+    assert report["iso9660"] is None
