@@ -50,6 +50,8 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Preserve and compare raw render-target/texture format support query masks without guessing flag semantics
 - [x] Resource-binding tier requirement assessment
 - [x] Unified graphics compatibility research report (native validation pending)
+- [x] Declarative D3D12 root-signature layout and DWORD cost validation
+- [x] Integrate root-signature structural checks into unified graphics report
 - [ ] Reproducible runtime test results with timestamps and environment metadata
 - [x] Evidence-linked target compatibility assessment (compatible/adaptable/platform-specific/unknown)
 - [x] CLI JSON export and subsystem filtering for compatibility reports
@@ -58,6 +60,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Native PSO creation tests using supplied shader bytecode and complete pipeline state
 - [ ] Render-target format support interpretation using verified SDK flag definitions
 - [ ] Native resource-binding validation with root signatures, descriptor heaps, and command lists
+- [ ] Native root-signature serialization and PSO creation smoke tests
 
 ## Later
 - [ ] Optional user-approved tests for specific software
