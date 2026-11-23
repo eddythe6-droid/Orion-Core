@@ -7,6 +7,8 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
+#include <climits>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -283,15 +285,12 @@ static BindingSmokeResult run_binding_smoke_test(ID3D12Device* device) {
     resourceHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
     resourceHeapDesc.NumDescriptors = 16;
     resourceHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    hr = device->CreateDescriptorHeap(&resourceHeapDesc, IID_PPV_ARGS(&ComPtr<ID3D12DescriptorHeap>()));
+    ComPtr<ID3D12DescriptorHeap> resourceHeap;
+    hr = device->CreateDescriptorHeap(&resourceHeapDesc, IID_PPV_ARGS(&resourceHeap));
     if (SUCCEEDED(hr)) {
-        ComPtr<ID3D12DescriptorHeap> heap;
-        hr = device->CreateDescriptorHeap(&resourceHeapDesc, IID_PPV_ARGS(&heap));
-        if (SUCCEEDED(hr)) {
-            result.resourceHeapCreated = true;
-            result.resourceDescriptorIncrement =
-                device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        }
+        result.resourceHeapCreated = true;
+        result.resourceDescriptorIncrement =
+            device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
     if (FAILED(hr)) {
         result.note = "resource_descriptor_heap:" + hr_string(hr);
