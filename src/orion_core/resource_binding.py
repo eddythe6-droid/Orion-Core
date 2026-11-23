@@ -5,15 +5,17 @@ from typing import Any
 
 
 def _tier(value: Any) -> int | None:
-    if not isinstance(value, str) or not value.startswith("tier_"):
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value if 1 <= value <= 3 else None
+    if not isinstance(value, str):
         return None
-    try:
-        return int(value.split("_", 1)[1])
-    except ValueError:
+    normalized = value.removeprefix("tier_")
+    if normalized not in {"1", "2", "3"}:
         return None
+    return int(normalized)
 
 
-def assess_binding_requirements(required_tier: str | None, adapter: dict[str, Any]) -> dict[str, Any]:
+def assess_binding_requirements(required_tier: str | int | None, adapter: dict[str, Any]) -> dict[str, Any]:
     reported = adapter.get("resource_binding_tier")
     required = _tier(required_tier)
     actual = _tier(reported)
