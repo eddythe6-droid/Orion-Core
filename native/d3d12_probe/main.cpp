@@ -113,6 +113,32 @@ static bool wait_for_fence(ID3D12Fence* fence, UINT64 value, HANDLE eventHandle)
     return WaitForSingleObject(eventHandle, 10000) == WAIT_OBJECT_0;
 }
 
+struct ResourceSmokeResult { bool success = false; std::string note = "not_run"; };
+static ResourceSmokeResult run_resource_copy_smoke_test(ID3D12Device* d, ID3D12CommandQueue* q) {
+    ResourceSmokeResult o; constexpr UINT64 n=256;
+    ComPtr<ID3D12Resource> u,g,b; ComPtr<ID3D12CommandAllocator> a;
+    ComPtr<ID3D12GraphicsCommandList> l; ComPtr<ID3D12Fence> f; HANDLE ev=nullptr;
+    auto fail=[&](const char* s,HRESULT h){o.note=std::string(s)+":"+hr_string(h);if(ev)CloseHandle(ev);return o;};
+    D3D12_RESOURCE_DESC x{};x.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;x.Width=n;x.Height=1;x.DepthOrArraySize=1;x.MipLevels=1;x.SampleDesc.Count=1;x.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    D3D12_HEAP_PROPERTIES hu{};hu.Type=D3D12_HEAP_TYPE_UPLOAD;hu.CreationNodeMask=1;hu.VisibleNodeMask=1;
+    D3D12_HEAP_PROPERTIES hd{};hd.Type=D3D12_HEAP_TYPE_DEFAULT;hd.CreationNodeMask=1;hd.VisibleNodeMask=1;
+    D3D12_HEAP_PROPERTIES hr{};hr.Type=D3D12_HEAP_TYPE_READBACK;hr.CreationNodeMask=1;hr.VisibleNodeMask=1;
+    HRESULT h=d->CreateCommittedResource(&hu,D3D12_HEAP_FLAG_NONE,&x,D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&u));if(FAILED(h))return fail("upload",h);
+    h=d->CreateCommittedResource(&hd,D3D12_HEAP_FLAG_NONE,&x,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&g));if(FAILED(h))return fail("default",h);
+    h=d->CreateCommittedResource(&hr,D3D12_HEAP_FLAG_NONE,&x,D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&b));if(FAILED(h))return fail("readback",h);
+    const D3D12_RANGE nr{0,0};std::uint8_t* p=nullptr;h=u->Map(0,&nr,reinterpret_cast<void**>(&p));if(FAILED(h))return fail("map_upload",h);
+    for(UINT i=0;i<n;++i)p[i]=static_cast<std::uint8_t>((i*37u+11u)&255u);u->Unmap(0,nullptr);
+    h=d->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&a));if(FAILED(h))return fail("allocator",h);
+    h=d->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,a.Get(),nullptr,IID_PPV_ARGS(&l));if(FAILED(h))return fail("list",h);
+    l->CopyBufferRegion(g.Get(),0,u.Get(),0,n);D3D12_RESOURCE_BARRIER z{};z.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;z.Transition.pResource=g.Get();z.Transition.Subresource=D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;z.Transition.StateBefore=D3D12_RESOURCE_STATE_COPY_DEST;z.Transition.StateAfter=D3D12_RESOURCE_STATE_COPY_SOURCE;l->ResourceBarrier(1,&z);l->CopyBufferRegion(b.Get(),0,g.Get(),0,n);
+    h=l->Close();if(FAILED(h))return fail("close",h);ID3D12CommandList* ls[]={l.Get()};q->ExecuteCommandLists(1,ls);
+    h=d->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&f));if(FAILED(h))return fail("fence",h);ev=CreateEventW(nullptr,FALSE,FALSE,nullptr);if(!ev){o.note="event_failed";return o;}
+    h=q->Signal(f.Get(),1);if(FAILED(h))return fail("signal",h);if(!wait_for_fence(f.Get(),1,ev)){CloseHandle(ev);o.note="wait_failed";return o;}
+    const D3D12_RANGE rr{0,static_cast<SIZE_T>(n)};std::uint8_t* v=nullptr;h=b->Map(0,&rr,reinterpret_cast<void**>(&v));if(FAILED(h))return fail("map_readback",h);
+    bool ok=true;for(UINT i=0;i<n;++i)if(v[i]!=static_cast<std::uint8_t>((i*37u+11u)&255u)){ok=false;break;}const D3D12_RANGE nw{0,0};b->Unmap(0,&nw);CloseHandle(ev);
+    o.success=ok;o.note=ok?"upload_copy_barrier_readback_verified":"readback_mismatch";return o;
+}
+
 int main(int argc, char** argv) {
     bool includeSoftware = false;
     for (int i = 1; i < argc; ++i) {
@@ -300,6 +326,7 @@ int main(int argc, char** argv) {
             } else queueError = "create_fence_failed:" + hr_string(hr);
         } else queueError = "create_command_queue_failed:" + hr_string(hr);
 
+        const ResourceSmokeResult resourceSmoke = queue ? run_resource_copy_smoke_test(device.Get(), queue.Get()) : ResourceSmokeResult{false, "queue_unavailable"};
         std::ostringstream item;
         item << "{\"name\":\"" << json_escape(narrow(desc.Description))
              << "\",\"vendor_id\":" << desc.VendorId
@@ -343,6 +370,8 @@ int main(int argc, char** argv) {
              << ",\"sampler_feedback_tier\":\"" << (options7Available ? samplerFeedbackTier : "unknown") << "\""
              << ",\"direct_queue_fence_test\":" << (queueFenceTest ? "true" : "false")
              << ",\"queue_test_note\":\"" << json_escape(queueError) << "\"}";
+             << ",\"resource_copy_smoke_test\":" << (resourceSmoke.success ? "true" : "false")
+             << ",\"resource_copy_smoke_note\":\"" << json_escape(resourceSmoke.note) << "\"}";
         adapterReports.push_back(item.str());
     }
 
