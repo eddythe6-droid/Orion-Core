@@ -15,6 +15,7 @@ from .pe_analyzer import analyze_pe, PEFormatError
 from .iso9660 import inspect_iso9660, ISO9660Error
 from .xdvdfs import inspect_xdvdfs, XDVDFSError
 from .stfs import inspect_stfs, inspect_svod_directory, STFSError
+from .xex import inspect_xex, XEXError
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -110,6 +111,12 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
             kind = _classify(file_path, header)
             pe_analysis = None
             stfs_metadata = None
+            xex_metadata = None
+            if kind == "xex2":
+                try:
+                    xex_metadata = inspect_xex(file_path)
+                except XEXError as exc:
+                    xex_metadata = {"valid_header": False, "error": str(exc)}
             if kind == "xbox_stfs":
                 try:
                     stfs_metadata = inspect_stfs(file_path)
@@ -128,6 +135,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 "sha256": _sha256(file_path, stat.st_size) if hash_files else None,
                 "pe_analysis": pe_analysis,
                 "stfs_metadata": stfs_metadata,
+                "xex_metadata": xex_metadata,
             })
             counts[kind] = counts.get(kind, 0) + 1
         except OSError as exc:
