@@ -235,23 +235,47 @@ class OrionDashboard:
     def _gpu_probe_worker(self, executable: str) -> None:
         try:
             self._emit("INFO", "D3D12: запуск процесса с аргументом --json; ожидание аппаратного отчёта.")
-            completed = subprocess.run(
-                [executable, "--json"], capture_output=True, text=True,
-                encoding="utf-8", errors="replace", timeout=180, check=False, shell=False,
+            process = subprocess.Popen(
+                [executable, "--json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, encoding="utf-8", errors="replace", shell=False,
             )
-            if completed.stderr.strip():
-                for line in completed.stderr.strip().splitlines():
-                    self._emit("WARNING", f"D3D12 stderr: {line[:500]}")
-            if completed.returncode not in (0, 3):
-                raise RuntimeError(f"probe завершился с кодом {completed.returncode}")
+            stdout_lines: list[str] = []
+
+            def read_stdout() -> None:
+                assert process.stdout is not None
+                stdout_lines.extend(process.stdout.readlines())
+
+            def read_stderr() -> None:
+                assert process.stderr is not None
+                for raw_line in process.stderr:
+                    line = raw_line.strip()
+                    if line.startswith("[ORION_PROGRESS]"):
+                        self._emit("INFO", "D3D12: " + line.removeprefix("[ORION_PROGRESS]").strip())
+                    elif line:
+                        self._emit("WARNING", f"D3D12 stderr: {line[:500]}")
+
+            stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+            stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+            stdout_thread.start()
+            stderr_thread.start()
             try:
-                raw = json.loads(completed.stdout)
+                return_code = process.wait(timeout=180)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                raise
+            stdout_thread.join(timeout=5)
+            stderr_thread.join(timeout=5)
+            if return_code not in (0, 3):
+                raise RuntimeError(f"probe завершился с кодом {return_code}")
+            try:
+                raw = json.loads("".join(stdout_lines))
             except json.JSONDecodeError as exc:
                 raise ProbeReportError("probe не вернул корректный JSON в stdout") from exc
             report = validate_probe_report(raw)
             self.events.put(("gpu_report", report))
             self._emit("SUCCESS", f"D3D12: отчёт получен; аппаратных D3D12-адаптеров: {report.get('hardware_d3d12_adapters', 0)}.")
-            if completed.returncode == 3:
+            if return_code == 3:
                 self._emit("WARNING", "D3D12: совместимый аппаратный адаптер не создан (код 3).")
             self.events.put(("gpu_done", True))
         except subprocess.TimeoutExpired:
