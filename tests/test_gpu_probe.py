@@ -6,6 +6,7 @@ from orion_core.gpu_probe import (
     ProbeReportError,
     summarize_probe_report,
     validate_probe_report,
+    compare_gpu_adapters,
 )
 
 
@@ -59,3 +60,38 @@ def test_summary_preserves_unknown_and_does_not_claim_game_compatibility():
 def test_rejects_non_object_report():
     with pytest.raises(ProbeReportError, match="object"):
         validate_probe_report(json.loads("[]"))
+
+
+
+def test_compare_gpu_adapters_orders_known_tiers_and_preserves_unknowns():
+    left = {
+        "name": "GPU A", "feature_level": "12_1", "shader_model": "6_6",
+        "resource_binding_tier": "3", "raytracing_tier": "1_1",
+        "mesh_shader_tier": "unknown", "sampler_feedback_tier": "not_supported",
+        "wave_ops": True, "int64_shader_ops": True,
+        "expanded_compute_resource_states": False,
+        "rgba8_support1": 15, "rgba8_support2": 0,
+    }
+    right = {
+        "name": "GPU B", "feature_level": "12_0", "shader_model": "6_6",
+        "resource_binding_tier": "2", "raytracing_tier": "not_supported",
+        "mesh_shader_tier": "1", "sampler_feedback_tier": "not_supported",
+        "wave_ops": False, "int64_shader_ops": True,
+        "expanded_compute_resource_states": False,
+        "rgba8_support1": 7, "rgba8_support2": 0,
+    }
+    report = compare_gpu_adapters(left, right)
+    by_name = {item["capability"]: item for item in report["results"]}
+    assert by_name["feature_level"]["status"] == "left_higher"
+    assert by_name["resource_binding_tier"]["status"] == "left_higher"
+    assert by_name["raytracing_tier"]["status"] == "left_higher"
+    assert by_name["mesh_shader_tier"]["status"] == "unknown"
+    assert by_name["wave_ops"]["status"] == "left_only"
+    assert by_name["rgba8_support1"]["left_only_bits"] == 8
+    assert report["summary"]["unknown"] == 1
+
+
+def test_compare_gpu_adapters_does_not_guess_missing_boolean_support():
+    report = compare_gpu_adapters({"name": "A"}, {"name": "B"})
+    wave = next(item for item in report["results"] if item["capability"] == "wave_ops")
+    assert wave["status"] == "unknown"
