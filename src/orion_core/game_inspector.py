@@ -13,6 +13,7 @@ from typing import Any
 
 from .pe_analyzer import analyze_pe, PEFormatError
 from .iso9660 import inspect_iso9660, ISO9660Error
+from .xdvdfs import inspect_xdvdfs, XDVDFSError
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -125,23 +126,37 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
             warnings.append(f"{relative}: {type(exc).__name__}: {exc}")
 
     iso_report = None
+    xdvdfs_report = None
     if target.is_file():
-        if target.suffix.lower() == ".iso":
+        if target.suffix.lower() in (".iso", ".xiso"):
             try:
-                iso_report = inspect_iso9660(target, max_entries=max_files)
-                for entry in iso_report["entries"]:
+                xdvdfs_report = inspect_xdvdfs(target, max_entries=max_files)
+                for entry in xdvdfs_report["entries"]:
                     if entry["directory"]:
                         continue
                     kind = _EXTENSION_HINTS.get(Path(entry["path"]).suffix.lower(), "unknown")
-                    records.append({
-                        "path": entry["path"], "size_bytes": entry["size_bytes"],
-                        "extension": Path(entry["path"]).suffix.lower(), "detected_type": kind,
-                        "sha256": None, "iso9660_member": True, "extent_sector": entry["extent_sector"],
-                    })
+                    records.append({"path": entry["path"], "size_bytes": entry["size_bytes"],
+                                    "extension": Path(entry["path"]).suffix.lower(), "detected_type": kind,
+                                    "sha256": None, "xdvdfs_member": True, "extent_sector": entry["extent_sector"]})
                     counts[kind] = counts.get(kind, 0) + 1
-            except ISO9660Error as exc:
-                warnings.append(f"ISO9660 parser: {exc}")
-                add_file(target, target.name)
+            except XDVDFSError as xdvdfs_exc:
+                warnings.append(f"XDVDFS parser: {xdvdfs_exc}")
+                if target.suffix.lower() == ".iso":
+                    try:
+                        iso_report = inspect_iso9660(target, max_entries=max_files)
+                        for entry in iso_report["entries"]:
+                            if entry["directory"]:
+                                continue
+                            kind = _EXTENSION_HINTS.get(Path(entry["path"]).suffix.lower(), "unknown")
+                            records.append({"path": entry["path"], "size_bytes": entry["size_bytes"],
+                                            "extension": Path(entry["path"]).suffix.lower(), "detected_type": kind,
+                                            "sha256": None, "iso9660_member": True, "extent_sector": entry["extent_sector"]})
+                            counts[kind] = counts.get(kind, 0) + 1
+                    except ISO9660Error as exc:
+                        warnings.append(f"ISO9660 parser: {exc}")
+                        add_file(target, target.name)
+                else:
+                    add_file(target, target.name)
         elif zipfile.is_zipfile(target):
             try:
                 with zipfile.ZipFile(target) as archive:
@@ -187,11 +202,12 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         "schema_version": INSPECTOR_SCHEMA_VERSION,
         "tool": "orion_game_inspector",
         "source_name": target.name,
-        "source_kind": "directory" if target.is_dir() else ("iso9660" if iso_report else ("zip_archive" if is_archive else "file")),
+        "source_kind": "directory" if target.is_dir() else ("xdvdfs" if xdvdfs_report else ("iso9660" if iso_report else ("zip_archive" if is_archive else "file"))),
         "files_inspected": len(records),
         "type_counts": dict(sorted(counts.items())),
         "files": records,
         "iso9660": iso_report,
+        "xdvdfs": xdvdfs_report,
         "warnings": warnings,
         "scope": "read_only_file_inventory_and_basic_signatures",
         "extraction_performed": False,
