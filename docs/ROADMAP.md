@@ -59,8 +59,11 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Exportable compatibility reports
 - [x] Native minimal HLSL compilation, graphics PSO creation, off-screen draw, and pixel readback smoke test (hardware runtime validation pending)
 - [ ] Render-target format support interpretation using verified SDK flag definitions
-- [x] Native minimal root-signature serialization/creation smoke test (runtime result captured per adapter)\n- [x] Native shader-visible CBV/SRV/UAV and sampler descriptor heap creation smoke tests\n- [ ] Populate descriptors and bind heaps/root signature on a command list\n- [ ] Native resource-binding validation with root signatures, descriptor heaps, and command lists
-- [ ] Native root-signature serialization and PSO creation smoke tests
+- [x] Native minimal root-signature serialization/creation smoke test (runtime result captured per adapter)
+- [x] Native shader-visible CBV/SRV/UAV and sampler descriptor heap creation smoke tests
+- [x] Populate a CBV descriptor and bind descriptor heap/root table on a native graphics command list (runtime validation pending)
+- [x] Native resource-binding validation smoke test with root signature, CBV descriptor heap, shader consumption, and pixel readback (runtime validation pending)
+- [x] Native root-signature serialization and graphics PSO creation smoke tests (runtime validation pending)
 
 ## Later
 - [ ] Optional user-approved tests for specific software
