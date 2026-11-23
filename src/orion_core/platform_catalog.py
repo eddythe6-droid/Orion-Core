@@ -238,6 +238,34 @@ _RECORDS = (
         notes="The preferred port is not a complete P2P solution and does not replace discovery or NAT punching. Do not assume this GDK helper exists in a generic desktop Win32 build.",
     ),
 
+
+    EvidenceRecord(
+        claim_id="GDK-PACKAGE-001",
+        subsystem="packaging",
+        claim="The GDK uses XVC packages for Xbox consoles and MSIXVC packages for Windows PC; the same makepkg toolchain supports the platform-specific package formats.",
+        platform="both",
+        classification="extension",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/packaging/overviews/packaging?view=gdk-2610",
+        source_title="Overview of packaging",
+        notes="Shared tooling and configuration do not mean the package formats are interchangeable. Xbox XVC and PC MSIXVC must be treated as distinct deployment targets.",
+    ),
+    EvidenceRecord(
+        claim_id="GDK-PACKAGE-002",
+        subsystem="packaging",
+        claim="MSIXVC2 is a PC-only packaging format available with the October 2026 GDK; Xbox console games continue to use XVC.",
+        platform="windows_pc",
+        classification="pc_only",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/packaging/overviews/packaging-msixvc2-overview?view=gdk-2610",
+        source_title="PC packaging improvements",
+        notes="MSIXVC2 retains MicrosoftGame.config, layout files, makepkg, and the .msixvc extension; it changes segmentation, compression, and distribution encryption. Release-specific defaults must be checked.",
+    ),
+
 )
 
 
