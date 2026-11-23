@@ -37,9 +37,7 @@ def main() -> None:
         print(json.dumps(report, indent=2, ensure_ascii=False))
         return
 
-    report = collect_diagnostics_report()
-    if args.basic_only:
-        report["windows_diagnostics"] = {"supported": False, "reason": "Skipped by --basic-only"}
+    report = collect_diagnostics_report(include_windows=not args.basic_only)
 
     if args.json:
         print(json.dumps(report, indent=2, ensure_ascii=False))
