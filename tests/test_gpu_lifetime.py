@@ -1,6 +1,7 @@
 import pytest
 
 from orion_core.gpu_lifetime import DeferredReleaseQueue, QueueSet
+from orion_core.graphics_harness import FencePoint
 
 
 def test_resource_waits_for_every_queue_that_used_it():
@@ -29,7 +30,7 @@ def test_retirement_rejects_unknown_or_unsubmitted_fence():
     with pytest.raises(ValueError):
         retired.retire('x', [])
     with pytest.raises(ValueError):
-        retired.retire('x', [__import__('orion_core.graphics_harness', fromlist=['FencePoint']).FencePoint('copy', 1)])
+        retired.retire('x', [FencePoint('copy', 1)])
 
 
 def test_queue_names_are_unique_and_unknown_names_rejected():
