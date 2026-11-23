@@ -321,7 +321,9 @@ struct RenderSmokeResult {
     bool shaderCompile = false;
     bool rootSignature = false;
     bool pipelineState = false;
-    bool drawExecuted = false;
+    bool drawRecorded = false;
+    bool commandsSubmitted = false;
+    bool descriptorBinding = false;
     std::string note = "not_run";
 };
 
@@ -337,7 +339,8 @@ static RenderSmokeResult run_render_smoke_test(
         "VOut VSMain(uint id : SV_VertexID) {"
         " float2 p[3] = { float2(-1.0, -1.0), float2(-1.0, 3.0), float2(3.0, -1.0) };"
         " VOut o; o.position = float4(p[id], 0.0, 1.0); return o; }"
-        "float4 PSMain() : SV_Target { return float4(1.0, 0.0, 0.0, 1.0); }";
+        "cbuffer ColorData : register(b0) { float4 color; };"
+        "float4 PSMain() : SV_Target { return color; }";
     HRESULT hr = D3DCompile(shaderSource, strlen(shaderSource), "orion_smoke.hlsl",
         nullptr, nullptr, "VSMain", "vs_5_0", D3DCOMPILE_OPTIMIZATION_LEVEL3,
         0, &vertexShader, &errors);
@@ -354,7 +357,20 @@ static RenderSmokeResult run_render_smoke_test(
     }
     result.shaderCompile = true;
 
+    D3D12_DESCRIPTOR_RANGE cbvRange{};
+    cbvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+    cbvRange.NumDescriptors = 1;
+    cbvRange.BaseShaderRegister = 0;
+    cbvRange.RegisterSpace = 0;
+    cbvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    D3D12_ROOT_PARAMETER rootParameter{};
+    rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameter.DescriptorTable.NumDescriptorRanges = 1;
+    rootParameter.DescriptorTable.pDescriptorRanges = &cbvRange;
+    rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     D3D12_ROOT_SIGNATURE_DESC rootDesc{};
+    rootDesc.NumParameters = 1;
+    rootDesc.pParameters = &rootParameter;
     rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     ComPtr<ID3DBlob> serializedRoot, rootErrors;
     hr = D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1,
@@ -410,6 +426,57 @@ static RenderSmokeResult run_render_smoke_test(
         return result;
     }
     result.pipelineState = true;
+
+    // Populate a shader-visible CBV descriptor and bind it through the root table.
+    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
+    cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    cbvHeapDesc.NumDescriptors = 1;
+    cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ComPtr<ID3D12DescriptorHeap> cbvHeap;
+    hr = device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap));
+    if (FAILED(hr)) {
+        result.note = "cbv_heap_create:" + hr_string(hr);
+        return result;
+    }
+
+    D3D12_HEAP_PROPERTIES uploadHeap{};
+    uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
+    uploadHeap.CreationNodeMask = 1;
+    uploadHeap.VisibleNodeMask = 1;
+    D3D12_RESOURCE_DESC cbvBufferDesc{};
+    cbvBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    cbvBufferDesc.Width = 256;
+    cbvBufferDesc.Height = 1;
+    cbvBufferDesc.DepthOrArraySize = 1;
+    cbvBufferDesc.MipLevels = 1;
+    cbvBufferDesc.SampleDesc.Count = 1;
+    cbvBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    ComPtr<ID3D12Resource> cbvBuffer;
+    hr = device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE,
+        &cbvBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+        IID_PPV_ARGS(&cbvBuffer));
+    if (FAILED(hr)) {
+        result.note = "cbv_buffer_create:" + hr_string(hr);
+        return result;
+    }
+    const float expectedColor[4] = {0.0f, 1.0f, 0.0f, 1.0f};
+    const D3D12_RANGE noRead{0, 0};
+    void* mappedConstants = nullptr;
+    hr = cbvBuffer->Map(0, &noRead, &mappedConstants);
+    if (FAILED(hr)) {
+        result.note = "cbv_buffer_map:" + hr_string(hr);
+        return result;
+    }
+    std::memcpy(mappedConstants, expectedColor, sizeof(expectedColor));
+    const D3D12_RANGE noWrite{0, 0};
+    cbvBuffer->Unmap(0, &noWrite);
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+    cbvDesc.BufferLocation = cbvBuffer->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = 256;
+    device->CreateConstantBufferView(&cbvDesc,
+        cbvHeap->GetCPUDescriptorHandleForHeapStart());
+    result.descriptorBinding = true;
 
     D3D12_HEAP_PROPERTIES defaultHeap{};
     defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -502,11 +569,15 @@ static RenderSmokeResult run_render_smoke_test(
     D3D12_RECT scissor{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
     list->RSSetViewports(1, &viewport);
     list->RSSetScissorRects(1, &scissor);
+    ID3D12DescriptorHeap* heaps[] = {cbvHeap.Get()};
+    list->SetDescriptorHeaps(1, heaps);
     list->SetGraphicsRootSignature(rootSignature.Get());
+    list->SetGraphicsRootDescriptorTable(0,
+        cbvHeap->GetGPUDescriptorHandleForHeapStart());
     list->SetPipelineState(pipeline.Get());
     list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     list->DrawInstanced(3, 1, 0, 0);
-    result.drawExecuted = true;
+    result.drawRecorded = true;
 
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -531,6 +602,7 @@ static RenderSmokeResult run_render_smoke_test(
     }
     ID3D12CommandList* lists[] = {list.Get()};
     queue->ExecuteCommandLists(1, lists);
+    result.commandsSubmitted = true;
 
     ComPtr<ID3D12Fence> fence;
     hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
@@ -560,13 +632,13 @@ static RenderSmokeResult run_render_smoke_test(
     }
     const size_t pixelOffset = static_cast<size_t>(height / 2) * footprint.Footprint.RowPitch
         + static_cast<size_t>(width / 2) * 4;
-    const bool pixelMatches = pixels[pixelOffset] == 255 &&
-        pixels[pixelOffset + 1] == 0 && pixels[pixelOffset + 2] == 0 &&
+    const bool pixelMatches = pixels[pixelOffset] == 0 &&
+        pixels[pixelOffset + 1] == 255 && pixels[pixelOffset + 2] == 0 &&
         pixels[pixelOffset + 3] == 255;
     const D3D12_RANGE noWrite{0, 0};
     readback->Unmap(0, &noWrite);
     result.success = pixelMatches;
-    result.note = pixelMatches ? "hlsl_pso_draw_readback_pixel_verified"
+    result.note = pixelMatches ? "cbv_descriptor_bound_hlsl_draw_readback_pixel_verified"
                                : "render_readback_pixel_mismatch";
     return result;
 }
