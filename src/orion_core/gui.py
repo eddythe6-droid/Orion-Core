@@ -271,8 +271,11 @@ class OrionDashboard:
     def save_log(self) -> None:
         path = filedialog.asksaveasfilename(defaultextension=".log", filetypes=[("Log files", "*.log"), ("Text files", "*.txt")])
         if path:
-            Path(path).write_text("\n".join(self.log_lines) + "\n", encoding="utf-8")
             self._log("SUCCESS", f"Журнал сохранён: {path}")
+            try:
+                Path(path).write_text("\n".join(self.log_lines) + "\n", encoding="utf-8")
+            except OSError as exc:
+                messagebox.showerror("Orion-Core", f"Не удалось сохранить журнал: {exc}")
 
     def export_report(self) -> None:
         if not self.report:
@@ -280,9 +283,12 @@ class OrionDashboard:
             return
         path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
         if path:
-            Path(path).write_text(json.dumps(self.report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            self._log("SUCCESS", "JSON-отчёт экспортирован.")
-
+            payload = {"system_diagnostics": self.report, "native_d3d12_probe": self.gpu_report}
+            try:
+                Path(path).write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                self._log("SUCCESS", "Объединённый JSON-отчёт экспортирован.")
+            except OSError as exc:
+                messagebox.showerror("Orion-Core", f"Не удалось экспортировать отчёт: {exc}")
 
 def main() -> None:
     root = tk.Tk()
