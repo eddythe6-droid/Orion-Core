@@ -81,6 +81,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Optional bounded SHA-256 hashing and JSON inspection reports
 - [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser
 - [ ] Research Xbox XEX/STFS structures from public documentation and lawful test samples
+- [x] Add read-only ISO9660 volume and recursive directory inventory
 - [ ] Add read-only parsers for documented asset/container formats
 
 ## Later
