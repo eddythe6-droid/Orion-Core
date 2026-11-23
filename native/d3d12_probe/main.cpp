@@ -468,8 +468,8 @@ static RenderSmokeResult run_render_smoke_test(
         return result;
     }
     std::memcpy(mappedConstants, expectedColor, sizeof(expectedColor));
-    const D3D12_RANGE noWrite{0, 0};
-    cbvBuffer->Unmap(0, &noWrite);
+    const D3D12_RANGE writtenConstants{0, sizeof(expectedColor)};
+    cbvBuffer->Unmap(0, &writtenConstants);
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
     cbvDesc.BufferLocation = cbvBuffer->GetGPUVirtualAddress();
@@ -888,8 +888,10 @@ int main(int argc, char** argv) {
              << ",\"render_shader_compile\":" << (renderSmoke.shaderCompile ? "true" : "false")
              << ",\"render_root_signature\":" << (renderSmoke.rootSignature ? "true" : "false")
              << ",\"render_pipeline_state\":" << (renderSmoke.pipelineState ? "true" : "false")
-             << ",\"render_draw_executed\":" << (renderSmoke.drawExecuted ? "true" : "false")
-             << ",\"render_smoke_note\":\"" << json_escape(renderSmoke.note) << "\"}";
+             << ",\"render_draw_recorded\":" << (renderSmoke.drawRecorded ? "true" : "false")
+              << ",\"render_commands_submitted\":" << (renderSmoke.commandsSubmitted ? "true" : "false")
+              << ",\"render_descriptor_binding\":" << (renderSmoke.descriptorBinding ? "true" : "false")
+              << ",\"render_smoke_note\":\"" << json_escape(renderSmoke.note) << "\"}";
         adapterReports.push_back(item.str());
     }
 
