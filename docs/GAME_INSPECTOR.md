@@ -6,7 +6,9 @@ The first game-file workflow is a conservative, read-only inventory tool.
 - Recursively inventories regular files in a directory without following symbolic links.
 - Reads only a short header from regular files to identify a small set of well-known signatures.
 - Lists members of ZIP-compatible archives using metadata only; it never extracts members.
-- Detects and inventories XDVDFS/XISO volume descriptors and directory trees in standard sector-32 and rebuilt sector-0 `.iso`/`.xiso` images; falls back to ISO9660 for ordinary `.iso` images. No mounting or extraction.
+- Detects and inventories XDVDFS/XISO volume descriptors and directory trees in common XGD1/XGD2/XGD3 partition layouts, bare XISO, and rebuilt sector-0 images; falls back to ISO9660 for ordinary `.iso` images. No mounting or extraction.
+- Parses public XContent metadata from `CON `, `LIVE`, and `PIRS` package headers, including content type, title/media IDs, disc metadata, display strings, and STFS/SVOD descriptor type.
+- Identifies a common Xbox 360 Games on Demand (GOD) sibling layout (`<ContentID>` plus `<ContentID>.data/DataNNNN`) using names and file sizes only.
 - Optionally computes SHA-256 for regular files up to 64 MiB.
 - Writes a machine-readable JSON report.
 - Parses core PE headers for MZ candidates: architecture, PE32/PE32+, image base, entry point, subsystem, sections, and imported DLL names when the import table is safely mappable.
@@ -15,11 +17,13 @@ The first game-file workflow is a conservative, read-only inventory tool.
 - It does not execute files, unpack proprietary containers, decrypt content, bypass DRM, or infer game compatibility.
 - Extension labels are hints, not proof of a file's internal format.
 - An MZ signature is only a PE candidate. The parser validates core PE structures and extracts limited metadata; it is not a complete PE/COFF validator and does not decode imports by ordinal or inspect resources, relocations, TLS, load configuration, or executable code.
-- Xbox-specific formats are recognized only by basic signatures or filename extensions. A detected label is not proof that a valid Xbox executable/package was parsed.
+- STFS inspection reads only the fixed public XContent metadata header. It does not validate RSA signatures or SHA-1 hash trees, parse the STFS file table, inspect SVOD hash tables, join DataNNNN payloads, or reconstruct a disc image. A `SVOD` descriptor is not itself proof of a complete GOD folder.
+- GOD/SVOD directory recognition is a conservative name/layout heuristic; it reports observed sibling files and sizes only. No payload bytes are read.
+- Xbox-specific formats not covered by a dedicated parser are recognized only by basic signatures or filename extensions. A detected label is not proof that a valid Xbox executable/package was parsed.
 
 ## CLI
 PowerShell examples:
 - python -m orion_core --inspect-game-path "D:\GameFiles" --inspect-output ".\game-inventory.json"
 - python -m orion_core --inspect-game-path ".\disc.zip" --inspect-hash-files
 
-Archive and ISO member listing is metadata-only. XDVDFS support currently covers the standard sector-32 layout and rebuilt sector-0 images only; it does not yet identify every Xbox 360 partition/container layout (such as XGD2/XGD3 offsets or SVOD/STFS wrappers). A successful directory listing is metadata inspection, not proof that the game can run on Windows. The tool applies file/member limits to avoid unbounded scans.
+Archive, ISO, STFS and GOD/SVOD inspection is metadata-only. XDVDFS supports known common XGD1/XGD2/XGD3 partition offsets and bare/rebuilt XISO; variable XGD2 offsets and hybrid layouts remain unsupported. A successful directory listing is metadata inspection, not proof that the game can run on Windows. The tool applies file/member limits to avoid unbounded scans.
