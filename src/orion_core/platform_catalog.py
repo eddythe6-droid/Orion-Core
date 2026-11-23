@@ -182,6 +182,34 @@ _RECORDS = (
         notes="Common API availability does not imply identical package paths, access permissions, save locations, or deployment layout.",
     ),
 
+
+    EvidenceRecord(
+        claim_id="GDK-AUDIO-001",
+        subsystem="audio",
+        claim="The GDK common audio programming model includes XAudio2; Xbox titles additionally target Xbox Audio extensions, while the Windows SDK exposes stock public XAudio APIs without device-specific audio extensions.",
+        platform="both",
+        classification="extension",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/gaming/gdk/docs/gdk-dev/intro/introduction?view=gdk-2604",
+        source_title="What is the Microsoft Game Development Kit?",
+        notes="The shared XAudio2 name does not establish binary equivalence of Xbox Audio extensions, endpoint behavior, or DSP capabilities. PC also exposes WASAPI and spatial audio APIs.",
+    ),
+    EvidenceRecord(
+        claim_id="GDK-AUDIO-XMA-001",
+        subsystem="audio_formats",
+        claim="XMA audio format support is documented for Xbox; the redistributable XAudio 2.9 documentation states that XMA is supported only on Xbox One, not PC.",
+        platform="xbox",
+        classification="xbox_only",
+        status="confirmed_fact",
+        confidence="high",
+        checked_on=CHECKED_ON,
+        source_url="https://learn.microsoft.com/en-us/windows/win32/xaudio2/xaudio2-redistributable",
+        source_title="Developer guide for redistributable version of XAudio 2.9",
+        notes="This is a format support boundary in the documented XAudio 2.9 context. A port must identify source assets and any required transcode/decode path; do not assume all Xbox titles use XMA.",
+    ),
+
 )
 
 
