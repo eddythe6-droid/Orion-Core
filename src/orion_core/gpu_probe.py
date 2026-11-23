@@ -47,6 +47,10 @@ def validate_probe_report(raw: Any) -> dict[str, Any]:
             raise ProbeReportError(f"adapter {index} software must be a boolean")
         if not isinstance(adapter.get("d3d12_device"), bool):
             raise ProbeReportError(f"adapter {index} d3d12_device must be a boolean")
+        if "resource_copy_smoke_test" in adapter and not isinstance(adapter["resource_copy_smoke_test"], bool):
+            raise ProbeReportError(f"adapter {index} resource_copy_smoke_test must be a boolean")
+        if "resource_copy_smoke_note" in adapter and not isinstance(adapter["resource_copy_smoke_note"], str):
+            raise ProbeReportError(f"adapter {index} resource_copy_smoke_note must be a string")
         for key in ("feature_level", "shader_model", "resource_binding_tier",
                     "raytracing_tier", "mesh_shader_tier", "sampler_feedback_tier"):
             if key in adapter and adapter[key] is not None and not isinstance(adapter[key], str):
@@ -95,6 +99,8 @@ def summarize_probe_report(report: dict[str, Any]) -> dict[str, Any]:
             "mesh_shader_tier": item.get("mesh_shader_tier", "unknown"),
             "sampler_feedback_tier": item.get("sampler_feedback_tier", "unknown"),
             "direct_queue_fence_test": item.get("direct_queue_fence_test"),
+            "resource_copy_smoke_test": item.get("resource_copy_smoke_test"),
+            "resource_copy_smoke_note": item.get("resource_copy_smoke_note", "unknown"),
             "formats": item.get("formats", []),
         })
     return {
