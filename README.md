@@ -22,7 +22,7 @@ The Game Inspector creates a JSON inventory from a game directory, a supported d
 | Xbox 360 XContent / STFS | Public metadata in `CON `, `LIVE`, and `PIRS` headers |
 | Xbox 360 GOD / SVOD | Conservative detection of the sibling header + `.data/DataNNNN` layout; file names and sizes only |
 | Xbox 360 XEX2 | Public wrapper metadata, optional-header directory, entry point, image base and execution information |
-| Windows PE | PE/COFF headers, data directories, section flags and bounds, named/ordinal imports, normal and delay-load Xbox/GDK dependency evidence, bounded Authenticode certificate-table framing, curated Win32 API families, graphics-stack dependencies and bounded DXBC/DXIL/SPIR-V shader metadata |
+| Windows PE | PE/COFF headers, data directories, section flags and bounds, named/ordinal imports, normal and delay-load Xbox/GDK dependency evidence, bounded Authenticode certificate-table framing, curated Win32 API families, graphics-stack dependencies and bounded DXBC/DXIL/SPIR-V shader metadata, including RDEF resource bindings and constant-buffer variable layouts |
 
 The parsers are deliberately read-only. XEX2 inspection does not decrypt or decompress the wrapped PowerPC image. STFS/SVOD inspection does not validate package signatures, process hash tables, or reconstruct payload files. A detected signature or layout is evidence for further investigation, not proof that a complete or valid game has been parsed.
 
