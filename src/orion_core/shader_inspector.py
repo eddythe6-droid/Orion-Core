@@ -199,8 +199,8 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
     }
 
 
-def _spirv_string(words: tuple[int, ...] | list[int]) -> str | None:
-    raw = b"".join(struct.pack("<I", word) for word in words)
+def _spirv_string(words: tuple[int, ...] | list[int], endian: str) -> str | None:
+    raw = b"".join(struct.pack(endian + "I", word) for word in words)
     terminator = raw.find(b"\\x00")
     if terminator < 0:
         return None
@@ -235,14 +235,14 @@ def _inspect_spirv_instructions(data: bytes, endian: str) -> dict[str, Any]:
                 raise ShaderFormatError("SPIR-V OpCapability has invalid word count")
             capabilities.add(operands[0])
         elif opcode == 10:  # OpExtension
-            value = _spirv_string(operands)
+            value = _spirv_string(operands, endian)
             if value is None:
                 raise ShaderFormatError("SPIR-V OpExtension string is not terminated")
             extensions.add(value)
         elif opcode == 15:  # OpEntryPoint
             if len(operands) < 3:
                 raise ShaderFormatError("SPIR-V OpEntryPoint is truncated")
-            name = _spirv_string(operands[2:])
+            name = _spirv_string(operands[2:], endian)
             if name is None:
                 raise ShaderFormatError("SPIR-V OpEntryPoint name is not terminated")
             entry_points.append({
