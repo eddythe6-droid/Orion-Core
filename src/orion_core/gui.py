@@ -78,21 +78,21 @@ class OrionDashboard:
         style.configure("Section.TLabel", background=surface, foreground=accent,
                         font=("Segoe UI Semibold", 9))
 
-        style.configure("TButton", background="#20324a", foreground=text,
-                        bordercolor=border, lightcolor="#20324a", darkcolor="#20324a",
+        style.configure("TButton", background="#1b2140", foreground=text,
+                        bordercolor="#343b76", lightcolor="#1b2140", darkcolor="#1b2140",
                         padding=(12, 8), relief="flat", font=("Segoe UI Semibold", 9))
         style.map("TButton",
-                  background=[("disabled", "#172337"), ("pressed", "#14243a"),
-                              ("active", "#2b4564")],
+                  background=[("disabled", "#171b31"), ("pressed", "#1b1746"),
+                              ("active", "#30216f")],
                   foreground=[("disabled", "#61738b"), ("active", "#ffffff")],
                   bordercolor=[("active", accent)])
-        style.configure("Accent.TButton", background="#1769c2", foreground="#ffffff",
-                        bordercolor="#287ed5", lightcolor="#1769c2", darkcolor="#1769c2",
+        style.configure("Accent.TButton", background="#6528e8", foreground="#ffffff",
+                        bordercolor="#8559ff", lightcolor="#6528e8", darkcolor="#6528e8",
                         padding=(14, 9), relief="flat",
                         font=("Segoe UI Semibold", 9))
         style.map("Accent.TButton",
-                  background=[("disabled", "#243b55"), ("pressed", "#12549b"),
-                              ("active", "#2583e8")],
+                  background=[("disabled", "#2c2747"), ("pressed", "#4d1fc3"),
+                              ("active", "#7c48ff")],
                   foreground=[("disabled", "#91a5bf"), ("!disabled", "#ffffff")])
 
         style.configure("TNotebook", background=bg, bordercolor=border,
@@ -139,6 +139,7 @@ class OrionDashboard:
         outer.pack(fill="both", expand=True)
 
         self._build_header(outer)
+        self._build_footer(outer)
 
         body = tk.Frame(outer, bg="#080d1d")
         body.pack(fill="both", expand=True)
@@ -163,7 +164,6 @@ class OrionDashboard:
         self._build_dashboard_page(self.dashboard_page)
         self._build_details_page(self.details_page)
         self._build_console(self.main_area)
-        self._build_footer(outer)
 
         self._navigate("Главная")
 
@@ -716,8 +716,6 @@ class OrionDashboard:
                     self.game_progress.stop()
                     self.status.set("Анализ игры завершён" if payload else "Анализ игры завершился с ошибкой")
                     if payload:
-                        self._set_stage(3, "complete", "Метаданные шейдеров проверены")
-                        self._set_stage(4, "complete", "Инвентаризация файлов завершена")
                         self.footer_state_var.set("Game Inspector сформировал отчёт; файлы не запускались")
                     else:
                         self._set_stage(3, "warning", "Анализ не завершён")
@@ -1069,6 +1067,20 @@ class OrionDashboard:
         lines.extend(["", "Ограничения: анализ только для чтения; исполняемые файлы не запускаются.",
                       "Локальное совпадение импорта с экспортом не доказывает ABI- или runtime-совместимость."])
         self._set_detail("Анализ игры", "\n".join(lines))
+        type_counts = report.get("type_counts", {})
+        shader_count = sum(
+            count for kind, count in type_counts.items()
+            if any(token in str(kind).casefold() for token in ("shader", "dxbc", "dxil", "spirv"))
+        )
+        if shader_count:
+            self._set_stage(3, "complete", f"Обнаружены shader-ресурсы: {shader_count}")
+        else:
+            self._set_stage(3, "warning", "Шейдерные файлы не обнаружены в выбранном наборе")
+        files_inspected = report.get("files_inspected", 0)
+        if files_inspected:
+            self._set_stage(4, "complete", f"Проверено файловых записей: {files_inspected}")
+        else:
+            self._set_stage(4, "warning", "Инвентаризация не вернула файловых записей")
         self._show_details("Анализ игры", update_nav=True)
         self._log("SUCCESS", "Отчёт Game Inspector отображён в интерфейсе.")
 
