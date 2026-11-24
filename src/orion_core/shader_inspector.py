@@ -39,6 +39,7 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
     stages = []
     dxil_programs = []
     seen_offsets = set()
+    chunk_ranges: list[tuple[int, int]] = []
     for index in range(chunk_count):
         offset = struct.unpack_from("<I", data, 32 + index * 4)[0]
         if offset in seen_offsets:
@@ -56,6 +57,9 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
         payload_end = payload_start + chunk_size
         if payload_end > declared_size:
             raise ShaderFormatError("DXBC chunk payload points outside container")
+        if any(offset < end and start < payload_end for start, end in chunk_ranges):
+            raise ShaderFormatError("overlapping DXBC chunk ranges")
+        chunk_ranges.append((offset, payload_end))
         payload = data[payload_start:payload_end]
         chunk_info: dict[str, Any] = {"fourcc": fourcc, "size_bytes": chunk_size}
         if fourcc in ("SHDR", "SHEX"):
