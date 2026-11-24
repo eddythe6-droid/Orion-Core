@@ -116,10 +116,42 @@ class OrionDashboard:
         game_controls.pack(fill="x", before=self.detail_views["Анализ игры"])
         ttk.Label(game_controls, text="Файл или папка игры:").pack(side="left")
         ttk.Entry(game_controls, textvariable=self.game_path).pack(side="left", fill="x", expand=True, padx=8)
-        ttk.Button(game_controls, text="Обзор…", command=self.choose_game_path).pack(side="left")
+        ttk.Button(game_controls, text="Папка…", command=self.choose_game_folder).pack(side="left")
+        ttk.Button(game_controls, text="Файл…", command=self.choose_game_file).pack(side="left", padx=(5, 0))
         self.game_button = ttk.Button(game_controls, text="Анализировать", style="Accent.TButton", command=self.start_game_inspection)
         self.game_button.pack(side="left", padx=(8, 0))
         ttk.Button(game_controls, text="Экспорт JSON", command=self.export_game_report).pack(side="left", padx=8)
+        self.game_progress = ttk.Progressbar(game_controls, mode="indeterminate", length=110)
+        self.game_progress.pack(side="right", padx=(8, 0))
+
+        dependency_panel = ttk.Frame(self.detail_notebook.nametowidget(self.detail_notebook.tabs()[1]), padding=(8, 0, 8, 8))
+        dependency_panel.pack(fill="both", before=self.detail_views["Анализ игры"])
+        dependency_header = ttk.Frame(dependency_panel)
+        dependency_header.pack(fill="x", pady=(0, 5))
+        ttk.Label(dependency_header, text="ТАБЛИЦА ЗАВИСИМОСТЕЙ").pack(side="left")
+        self.dependency_filter = tk.StringVar()
+        filter_entry = ttk.Entry(dependency_header, textvariable=self.dependency_filter, width=28)
+        filter_entry.pack(side="right")
+        ttk.Label(dependency_header, text="Поиск DLL / API:").pack(side="right", padx=(0, 6))
+        filter_entry.bind("<KeyRelease>", self._filter_dependency_tree)
+        tree_frame = ttk.Frame(dependency_panel)
+        tree_frame.pack(fill="both", expand=True)
+        columns = ("module", "classification", "kind", "symbols", "resolution")
+        self.dependency_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=7)
+        for column, title, width in (
+            ("module", "Модуль DLL", 190), ("classification", "Класс", 170),
+            ("kind", "Импорт", 100), ("symbols", "Функции", 75), ("resolution", "Локальная сверка", 155),
+        ):
+            self.dependency_tree.heading(column, text=title)
+            self.dependency_tree.column(column, width=width, minwidth=60, stretch=column == "module")
+        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.dependency_tree.yview)
+        self.dependency_tree.configure(yscrollcommand=tree_scroll.set)
+        self.dependency_tree.pack(side="left", fill="both", expand=True)
+        tree_scroll.pack(side="right", fill="y")
+        self.dependency_tree.bind("<<TreeviewSelect>>", self._on_dependency_selected)
+        self.dependency_rows = []
+        self.dependency_selection = tk.StringVar(value="Выберите DLL в таблице, чтобы увидеть подробности.")
+        ttk.Label(dependency_panel, textvariable=self.dependency_selection, wraplength=1000).pack(anchor="w", pady=(5, 0))
         self._set_detail("Обзор", "Запустите диагностику, чтобы получить сведения о системе.")
         self._set_detail("CPU и память", "Данные появятся после системной диагностики.")
         self._set_detail("GPU / D3D12", "Запустите D3D12 probe для подробного отчёта.")
@@ -211,6 +243,7 @@ class OrionDashboard:
                     self._render_game_report(payload)
                 elif kind == "game_done":
                     self.game_button.configure(state="normal")
+                    self.game_progress.stop()
                     self.status.set("Анализ игры завершён" if payload else "Анализ игры завершился с ошибкой")
                 elif kind == "gpu_report":
                     self.gpu_report = payload
@@ -291,16 +324,70 @@ class OrionDashboard:
 
 
 
-    def choose_game_path(self) -> None:
+    def choose_game_folder(self) -> None:
         path = filedialog.askdirectory(title="Выберите папку игры")
-        if not path:
-            path = filedialog.askopenfilename(
-                title="Выберите EXE, DLL или образ игры",
-                filetypes=[("Поддерживаемые файлы", "*.exe *.dll *.iso *.xiso *.xex *.zip"),
-                           ("Все файлы", "*.*")],
-            )
         if path:
             self.game_path.set(path)
+
+    def choose_game_file(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Выберите EXE, DLL или образ игры",
+            filetypes=[("Поддерживаемые файлы", "*.exe *.dll *.iso *.xiso *.xex *.zip"),
+                       ("Все файлы", "*.*")],
+        )
+        if path:
+            self.game_path.set(path)
+
+    def _filter_dependency_tree(self, _event: Any = None) -> None:
+        query = self.dependency_filter.get().strip().casefold()
+        for item in self.dependency_tree.get_children():
+            self.dependency_tree.delete(item)
+        for row in self.dependency_rows:
+            haystack = " ".join(str(value) for value in row["values"]).casefold()
+            if not query or query in haystack:
+                self.dependency_tree.insert("", "end", iid=row["iid"], values=row["values"])
+
+    def _on_dependency_selected(self, _event: Any = None) -> None:
+        selected = self.dependency_tree.selection()
+        if not selected:
+            return
+        row = next((item for item in self.dependency_rows if item["iid"] == selected[0]), None)
+        if row:
+            self.dependency_selection.set(row["detail"])
+
+    def _populate_dependency_tree(self, report: dict[str, Any]) -> None:
+        self.dependency_rows = []
+        for record in report.get("files", []):
+            deps = record.get("dependency_analysis") or {}
+            resolution = deps.get("local_resolution", {})
+            resolution_by_name = {item.get("module", "").casefold(): item for item in resolution.get("modules", [])}
+            api_report = deps.get("api_catalog_assessment", {})
+            api_by_name = {item.get("module", "").casefold(): item for item in api_report.get("modules", [])}
+            for module in deps.get("modules", []):
+                name = module.get("module", "")
+                match = resolution_by_name.get(name.casefold(), {})
+                status = match.get("status", "не выполнялась")
+                status = {"candidate_file_found": "кандидат найден", "missing_module": "нет в папке",
+                          "ambiguous_module": "неоднозначно", "architecture_mismatch": "архитектура не совпала"}.get(status, status)
+                api_module = api_by_name.get(name.casefold(), {})
+                known = [item for item in api_module.get("symbols", []) if item.get("status") == "known_win32_api_family"]
+                symbol_count = len(module.get("symbols", []))
+                kind = "Обычный" if module.get("normal_import") else ""
+                if module.get("delay_load_import"):
+                    kind = (kind + " + отложенный").strip(" +")
+                details = [f"DLL: {name}", f"Классификация: {module.get('classification', '—')}",
+                           f"Импорт: {kind or 'неизвестен'}", f"Функций в таблице: {symbol_count}",
+                           f"Локальная сверка: {status}"]
+                if match.get("candidate_path"):
+                    details.append(f"Файл-кандидат: {match['candidate_path']}")
+                if known:
+                    details.append("Известные Win32 API семейства: " + ", ".join(sorted({x.get("family", "") for x in known})))
+                details.append("Маркировка Win32 API не означает эквивалентность Xbox API.")
+                iid = f"dep_{len(self.dependency_rows)}"
+                self.dependency_rows.append({"iid": iid, "values": (
+                    name, module.get("classification", "—"), kind or "—", symbol_count, status
+                ), "detail": " | ".join(details)})
+        self._filter_dependency_tree()
 
     def start_game_inspection(self) -> None:
         if self.worker and self.worker.is_alive():
@@ -311,6 +398,7 @@ class OrionDashboard:
             messagebox.showinfo("Orion-Core", "Сначала выберите файл или папку игры.")
             return
         self.game_button.configure(state="disabled")
+        self.game_progress.start(12)
         self.status.set("Выполняется анализ игры…")
         self._set_detail("Анализ игры", "Анализ выполняется. Большие папки могут обрабатываться некоторое время.")
         self._log("INFO", f"Начат read-only анализ игрового материала: {path}")
@@ -332,6 +420,7 @@ class OrionDashboard:
             self.events.put(("game_done", False))
 
     def _render_game_report(self, report: dict[str, Any]) -> None:
+        self._populate_dependency_tree(report)
         lines = [
             f"Источник: {report.get('source_name', '—')}",
             f"Тип: {report.get('source_kind', '—')}",
