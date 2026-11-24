@@ -42,21 +42,91 @@ class OrionDashboard:
         self._log("INFO", "Diagnostic collectors are read-only; GPU runtime tests are not started by this scan.")
 
     def _configure_style(self) -> None:
-        self.root.configure(bg="#101722")
-        style = ttk.Style()
+        """Apply a consistent dark desktop theme using native ttk widgets."""
+        self.root.configure(bg="#0b1220")
+        style = ttk.Style(self.root)
         try:
             style.theme_use("clam")
         except tk.TclError:
             pass
-        style.configure("TFrame", background="#101722")
-        style.configure("Card.TFrame", background="#192535")
-        style.configure("TLabel", background="#101722", foreground="#e7eef7", font=("Segoe UI", 10))
-        style.configure("Title.TLabel", font=("Segoe UI Semibold", 22), foreground="#f2f6fc")
-        style.configure("Muted.TLabel", foreground="#9fb0c4")
-        style.configure("CardTitle.TLabel", background="#192535", foreground="#9fb0c4", font=("Segoe UI", 9))
-        style.configure("CardValue.TLabel", background="#192535", foreground="#f2f6fc", font=("Segoe UI Semibold", 15))
-        style.configure("Accent.TButton", font=("Segoe UI Semibold", 10), padding=9)
-        style.configure("TButton", padding=8)
+
+        bg = "#0b1220"
+        surface = "#111c2d"
+        card = "#17263a"
+        border = "#263b55"
+        text = "#e8f0fb"
+        muted = "#91a5bf"
+        accent = "#4ea1ff"
+        accent_hover = "#70b4ff"
+
+        self.root.option_add("*Font", ("Segoe UI", 10))
+        self.root.option_add("*TCombobox*Listbox*Background", surface)
+        self.root.option_add("*TCombobox*Listbox*Foreground", text)
+
+        style.configure(".", background=bg, foreground=text, font=("Segoe UI", 10))
+        style.configure("TFrame", background=bg)
+        style.configure("Card.TFrame", background=card, relief="flat")
+        style.configure("Panel.TFrame", background=surface, relief="flat")
+        style.configure("TLabel", background=bg, foreground=text, font=("Segoe UI", 10))
+        style.configure("Title.TLabel", background=bg, foreground="#f4f8ff",
+                        font=("Segoe UI Semibold", 23))
+        style.configure("Muted.TLabel", background=bg, foreground=muted)
+        style.configure("CardTitle.TLabel", background=card, foreground=muted,
+                        font=("Segoe UI Semibold", 8))
+        style.configure("CardValue.TLabel", background=card, foreground=text,
+                        font=("Segoe UI Semibold", 15))
+        style.configure("Section.TLabel", background=surface, foreground=accent,
+                        font=("Segoe UI Semibold", 9))
+
+        style.configure("TButton", background="#20324a", foreground=text,
+                        bordercolor=border, lightcolor="#20324a", darkcolor="#20324a",
+                        padding=(12, 8), relief="flat", font=("Segoe UI Semibold", 9))
+        style.map("TButton",
+                  background=[("disabled", "#172337"), ("pressed", "#14243a"),
+                              ("active", "#2b4564")],
+                  foreground=[("disabled", "#61738b"), ("active", "#ffffff")],
+                  bordercolor=[("active", accent)])
+        style.configure("Accent.TButton", background="#1769c2", foreground="#ffffff",
+                        bordercolor="#287ed5", lightcolor="#1769c2", darkcolor="#1769c2",
+                        padding=(14, 9), relief="flat",
+                        font=("Segoe UI Semibold", 9))
+        style.map("Accent.TButton",
+                  background=[("disabled", "#243b55"), ("pressed", "#12549b"),
+                              ("active", "#2583e8")],
+                  foreground=[("disabled", "#91a5bf"), ("!disabled", "#ffffff")])
+
+        style.configure("TNotebook", background=bg, bordercolor=border,
+                        tabmargins=(2, 5, 2, 0), lightcolor=bg, darkcolor=bg)
+        style.configure("TNotebook.Tab", background="#17263a", foreground=muted,
+                        padding=(13, 8), bordercolor=border,
+                        font=("Segoe UI Semibold", 9))
+        style.map("TNotebook.Tab",
+                  background=[("selected", "#203a58"), ("active", "#1b3049")],
+                  foreground=[("selected", "#ffffff"), ("active", text)],
+                  expand=[("selected", (1, 1, 1, 0))])
+
+        style.configure("Treeview", background=surface, fieldbackground=surface,
+                        foreground=text, bordercolor=border, rowheight=27,
+                        font=("Segoe UI", 9))
+        style.configure("Treeview.Heading", background="#20324a", foreground=text,
+                        relief="flat", padding=(8, 7),
+                        font=("Segoe UI Semibold", 9))
+        style.map("Treeview",
+                  background=[("selected", "#24558a")],
+                  foreground=[("selected", "#ffffff")])
+        style.map("Treeview.Heading", background=[("active", "#2b4564")])
+
+        style.configure("TEntry", fieldbackground="#0e1929", foreground=text,
+                        insertcolor=text, bordercolor=border, lightcolor=border,
+                        darkcolor=border, padding=7)
+        style.map("TEntry", bordercolor=[("focus", accent)])
+        style.configure("TScrollbar", background="#20324a", troughcolor="#0e1929",
+                        bordercolor=bg, arrowcolor=muted, gripcount=0)
+        style.map("TScrollbar", background=[("active", "#355477")])
+        style.configure("TPanedwindow", background=bg, sashrelief="flat")
+        style.configure("Horizontal.TProgressbar", troughcolor="#0e1929",
+                        background=accent, bordercolor=border, lightcolor=accent,
+                        darkcolor=accent)
 
     def _build_layout(self) -> None:
         outer = ttk.Frame(self.root, padding=18)
@@ -172,8 +242,11 @@ class OrionDashboard:
         self.console.configure(yscrollcommand=scrollbar.set)
         self.console.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        split.add(overview, weight=1)
-        split.add(console, weight=4)
+        split.add(overview, weight=3)
+        split.add(console, weight=2)
+        # Keep the live event console visible on first launch instead of
+        # allowing the first pane to consume the entire window.
+        self.root.after(150, lambda: split.sashpos(0, 440))
 
     def _set_detail(self, name: str, value: str) -> None:
         widget = self.detail_views[name]
