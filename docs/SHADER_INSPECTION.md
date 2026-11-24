@@ -10,7 +10,7 @@ Game Inspector can inspect bounded on-disk files with a `.cso`, `.dxil`, `.dxbc`
 - All offsets and chunk extents are checked against the declared container size.
 - No extraction, execution, decryption, or modification is performed.
 - The 16-byte container hash is not verified.
-- RDEF parsing is limited to the common 28-byte header and 32-byte resource-binding records. Constant-buffer layouts and version-specific variants are not decoded.
+- RDEF parsing covers the common 28-byte header, 32-byte resource-binding records, 24-byte constant-buffer records, and 40-byte variable records. It reports names, declared buffer/variable sizes, variable offsets, and bounded offset/range checks. Type descriptors, default-value contents, and version-specific variants are not decoded.
 - DXIL bitcode, DXBC instructions, input/output signatures, root signatures, pipeline state, and GPU requirements are not decoded.
 - SPIR-V instruction framing is checked for word alignment, non-zero word counts, and in-module bounds. Only opcode counts plus `OpCapability`, `OpExtension`, and `OpEntryPoint` metadata are inventoried; this is not semantic SPIR-V validation.
 - SPIR-V IDs, types, control flow, decorations, descriptor layouts, execution modes, and capability requirements are not resolved.
