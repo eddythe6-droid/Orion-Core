@@ -117,12 +117,13 @@ def test_reads_pe32_named_import(tmp_path):
 
 
 def make_pe_with_delay_import(path, *, rva_based=True):
-    make_minimal_pe(path)
+    make_minimal_pe(path, machine=0x8664 if rva_based else 0x14C,
+                    magic=0x20B if rva_based else 0x10B)
     data = bytearray(path.read_bytes())
     opt = 0x98
-    directory_offset = 112
+    directory_offset = 112 if rva_based else 96
     struct.pack_into("<II", data, opt + directory_offset + 13 * 8, 0x1000, 64)
-    name_value = 0x1080 if rva_based else 0x140001080
+    name_value = 0x1080 if rva_based else 0x401080
     struct.pack_into("<IIIIIIII", data, 0x200, 1 if rva_based else 0,
                      name_value, 0, 0, 0, 0, 0, 0)
     data[0x280:0x28D] = b"delaymod.dll\0"
