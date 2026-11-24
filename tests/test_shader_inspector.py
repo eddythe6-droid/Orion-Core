@@ -111,3 +111,52 @@ def test_rdef_out_of_bounds_resource_table_is_reported_not_read():
     reflection = report["chunks"][0]["resource_reflection"]
     assert reflection["assessment"] == "resource_binding_table_out_of_bounds"
     assert reflection["resources"] == []
+
+
+def _spirv_string_words(value):
+    raw = value.encode("utf-8") + b"\\x00"
+    raw += b"\\x00" * ((-len(raw)) % 4)
+    return list(struct.unpack("<" + "I" * (len(raw) // 4), raw))
+
+
+def test_spirv_inventories_capabilities_extensions_and_entry_points():
+    from orion_core.shader_inspector import inspect_spirv_bytes
+
+    capability = [(2 << 16) | 17, 1]  # OpCapability Shader
+    extension_words = _spirv_string_words("SPV_KHR_storage_buffer_storage_class")
+    extension = [(1 + len(extension_words)) << 16 | 10, *extension_words]
+    name_words = _spirv_string_words("main")
+    entry = [(3 + len(name_words)) << 16 | 15, 4, 9, *name_words]
+    words = [0x07230203, 0x00010600, 7, 64, 0, *capability, *extension, *entry]
+    data = struct.pack("<" + "I" * len(words), *words)
+
+    report = inspect_spirv_bytes(data)
+    assert report["capabilities"] == [1]
+    assert report["extensions"] == ["SPV_KHR_storage_buffer_storage_class"]
+    assert report["entry_points"] == [{
+        "execution_model": 4, "entry_point_id": 9, "name": "main"
+    }]
+    assert report["instruction_count"] == 3
+    assert report["instruction_stream_parsed"] is True
+    assert report["bytecode_validated"] is False
+
+
+def test_spirv_rejects_zero_word_count_and_truncated_instruction():
+    from orion_core.shader_inspector import inspect_spirv_bytes
+
+    header = struct.pack("<5I", 0x07230203, 0x00010000, 0, 10, 0)
+    with pytest.raises(ShaderFormatError, match="zero word count"):
+        inspect_spirv_bytes(header + struct.pack("<I", 17))
+    with pytest.raises(ShaderFormatError, match="extends beyond"):
+        inspect_spirv_bytes(header + struct.pack("<I", (3 << 16) | 17) + struct.pack("<I", 1))
+
+
+def test_spirv_big_endian_entry_point_string_is_preserved():
+    from orion_core.shader_inspector import inspect_spirv_bytes
+
+    # Big-endian word encoding; OpEntryPoint with a one-word null-terminated name.
+    words = [0x07230203, 0x00010000, 0, 32, 0, (4 << 16) | 15, 0, 3, 0x6D61696E]
+    data = struct.pack(">" + "I" * len(words), *words)
+    report = inspect_spirv_bytes(data)
+    assert report["endianness"] == "big"
+    assert report["entry_points"][0]["name"] == "main"
