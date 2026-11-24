@@ -83,8 +83,8 @@ def _classify(path: Path, header: bytes) -> str:
     return _EXTENSION_HINTS.get(path.suffix.lower(), "unknown")
 
 
-def _sha256(path: Path, size: int) -> str | None:
-    if size > HASH_LIMIT_BYTES:
+def _sha256(path: Path, size: int, *, allow_large: bool = False) -> str | None:
+    if size > HASH_LIMIT_BYTES and not allow_large:
         return None
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -93,7 +93,13 @@ def _sha256(path: Path, size: int) -> str | None:
     return digest.hexdigest()
 
 
-def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_files: bool = False) -> dict[str, Any]:
+def inspect_game_path(
+    path: str | Path,
+    *,
+    max_files: int = MAX_FILES,
+    hash_files: bool = False,
+    hash_large_executables: bool = False,
+) -> dict[str, Any]:
     """Inventory a file, directory, or ZIP-compatible archive without extracting it."""
     target = Path(path)
     if not target.exists():
@@ -149,12 +155,29 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                     pe_analysis = {"valid_pe_structure": False, "error": str(exc)}
                     scarlett_analysis = {"assessment": "invalid_or_unsupported_pe", "error": str(exc),
                                          "authenticity_verified": False, "execution_performed": False}
+            should_hash = hash_files and (
+                stat.st_size <= HASH_LIMIT_BYTES
+                or (hash_large_executables and kind in {"pe_dos_header", "xex2", "xbox_stfs"})
+            )
+            digest = (
+                _sha256(
+                    file_path,
+                    stat.st_size,
+                    allow_large=hash_large_executables and kind in {"pe_dos_header", "xex2", "xbox_stfs"},
+                )
+                if should_hash else None
+            )
             records.append({
                 "path": relative,
                 "size_bytes": stat.st_size,
                 "extension": file_path.suffix.lower(),
                 "detected_type": kind,
-                "sha256": _sha256(file_path, stat.st_size) if hash_files else None,
+                "sha256": digest,
+                "sha256_status": (
+                    "computed" if digest else
+                    "not_requested" if not hash_files else
+                    "over_64_mib_limit"
+                ),
                 "pe_analysis": pe_analysis,
                 "scarlett_analysis": scarlett_analysis,
                 "dependency_analysis": dependency_analysis,
@@ -234,7 +257,16 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                     "size_bytes": stat.st_size,
                     "extension": target.suffix.lower(),
                     "detected_type": "xbox_stfs",
-                    "sha256": _sha256(target, stat.st_size) if hash_files else None,
+                    "sha256": (
+                        _sha256(target, stat.st_size, allow_large=hash_large_executables)
+                        if hash_files and (stat.st_size <= HASH_LIMIT_BYTES or hash_large_executables)
+                        else None
+                    ),
+                    "sha256_status": (
+                        "computed" if hash_files and (stat.st_size <= HASH_LIMIT_BYTES or hash_large_executables)
+                        else "not_requested" if not hash_files
+                        else "over_64_mib_limit"
+                    ),
                     "pe_analysis": None,
                     "scarlett_analysis": None,
                     "dependency_analysis": None,
