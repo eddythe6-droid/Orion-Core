@@ -15,7 +15,8 @@ from .pe_analyzer import analyze_pe, PEFormatError
 from .iso9660 import inspect_iso9660, ISO9660Error
 from .xdvdfs import inspect_xdvdfs, XDVDFSError
 from .stfs import inspect_stfs, inspect_svod_directory, STFSError
-from .xex import inspect_xex, XEXError\nfrom .scarlett import inspect_scarlett_pe
+from .xex import inspect_xex, XEXError
+from .scarlett import inspect_scarlett_pe
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
