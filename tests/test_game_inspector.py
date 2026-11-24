@@ -122,3 +122,5 @@ def test_game_inspector_includes_scarlett_assessment_for_valid_pe(tmp_path):
     assert record["pe_analysis"]["architecture"] == "x86_64"
     assert record["scarlett_analysis"]["assessment"] == "x64_pe_candidate_no_specific_gdk_imports"
     assert record["scarlett_analysis"]["authenticity_verified"] is False
+    assert record["dependency_analysis"]["module_count"] == 0
+    assert record["dependency_analysis"]["compatibility_established"] is False
