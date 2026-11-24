@@ -78,9 +78,9 @@ def test_shader_file_detects_binary_magic_even_with_wrong_extension(tmp_path):
     assert report["extension_format_match"] is True
 
 def test_rejects_overlapping_dxbc_chunks():
-    malformed = bytearray(_container([("SHEX", b"1234"), ("SHDR", b"5678")]))
+    malformed = bytearray(_container([("SHEX", b"ABCD" + struct.pack("<I", 0)), ("SHDR", b"5678")]))
     first_offset = struct.unpack_from("<I", malformed, 32)[0]
-    struct.pack_into("<I", malformed, 36, first_offset + 4)
+    struct.pack_into("<I", malformed, 36, first_offset + 8)
     with pytest.raises(ShaderFormatError, match="overlapping"):
         inspect_shader_bytes(bytes(malformed))
 
