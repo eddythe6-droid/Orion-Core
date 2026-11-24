@@ -285,6 +285,7 @@ class OrionDashboard:
         self.verdict_var = tk.StringVar(value="Не оценивалось")
         self.verdict_note_var = tk.StringVar(value="Совместимость не выводится только по модели GPU")
         self.pc_summary_var = tk.StringVar(value="ПК: диагностика ещё не запускалась")
+        self.probe_state_var = tk.StringVar(value="D3D12 probe ещё не запускался")
         self.metric_vars = {
             "gpu_perf": tk.StringVar(value="Не измерялась"),
             "vram": tk.StringVar(value="Нет данных"),
@@ -439,10 +440,37 @@ class OrionDashboard:
         pc_panel.grid(row=2, column=0, sticky="nsew", pady=(6, 0))
         tk.Label(pc_body, textvariable=self.pc_summary_var, bg="#10172c",
                  fg="#aebbe0", font=("Segoe UI", 8), wraplength=360,
-                 justify="left").pack(anchor="w", fill="x")
+                 justify="left").pack(anchor="w", fill="x", pady=(0, 4))
+        stage_names = (
+            "Контейнер / образ", "Файловая структура", "Исполняемые модули",
+            "Шейдерные метаданные", "API-зависимости", "PC D3D12 runtime",
+        )
+        self.stage_vars: list[tk.StringVar] = []
+        self.stage_bars: list[ttk.Progressbar] = []
+        self.stage_icons: list[tk.Label] = []
+        self.stage_details: list[tk.Label] = []
+        for name in stage_names:
+            row = tk.Frame(pc_body, bg="#10172c")
+            row.pack(fill="x", pady=1)
+            icon = tk.Label(row, text="○", width=2, bg="#10172c", fg="#687697",
+                            font=("Segoe UI", 9, "bold"))
+            icon.pack(side="left")
+            self.stage_icons.append(icon)
+            tk.Label(row, text=name, width=22, anchor="w", bg="#10172c",
+                     fg="#cbd6f2", font=("Segoe UI", 7)).pack(side="left")
+            bar = ttk.Progressbar(row, maximum=100, value=0, length=55,
+                                  style="Accent.Horizontal.TProgressbar")
+            bar.pack(side="left", padx=(3, 5), ipady=1)
+            self.stage_bars.append(bar)
+            state = tk.StringVar(value="Ожидает")
+            self.stage_vars.append(state)
+            detail = tk.Label(row, textvariable=state, width=14, anchor="e",
+                              bg="#10172c", fg="#7785a8", font=("Segoe UI", 7))
+            detail.pack(side="right")
+            self.stage_details.append(detail)
         ttk.Button(pc_body, text="Открыть диагностику ПК",
                    command=lambda: self._show_details("CPU и память", update_nav=True)).pack(
-                       anchor="e", pady=(5, 0)
+                       anchor="e", pady=(4, 0)
                    )
 
         self._set_text(self.media_metadata_text,
@@ -727,6 +755,21 @@ class OrionDashboard:
                                 insertbackground="#ffffff", relief="flat",
                                 wrap="word", font=("Consolas", 10),
                                 padx=10, pady=10, state="disabled")
+            if tab_name == "GPU / D3D12":
+                toolbar = tk.Frame(tab, bg="#10172c")
+                toolbar.pack(fill="x", padx=8, pady=(8, 0))
+                self.gpu_button = ttk.Button(
+                    toolbar, text="Выбрать D3D12 Probe…",
+                    command=self.choose_gpu_probe
+                )
+                self.gpu_button.pack(side="left")
+                ttk.Button(
+                    toolbar, text="Диагностика ПК",
+                    command=self.start_scan
+                ).pack(side="left", padx=6)
+                tk.Label(toolbar, textvariable=self.probe_state_var,
+                         bg="#10172c", fg="#aab8da",
+                         font=("Segoe UI", 8)).pack(side="left", padx=10)
             text_view.pack(fill="both", expand=True, padx=8, pady=8)
             self.detail_notebook.add(tab, text=tab_name)
             self.detail_views[tab_name] = text_view
@@ -882,8 +925,8 @@ class OrionDashboard:
         ttk.Button(footer, text="Экспорт отчёта",
                    command=self.export_report).pack(side="right", padx=4, pady=7)
         self.scan_button = ttk.Button(
-            footer, text="▶  Запустить проверку",
-            style="Accent.TButton", command=self.start_scan
+            footer, text="Диагностика ПК",
+            style="TButton", command=self.start_scan
         )
         self.scan_button.pack(side="right", padx=4, pady=7)
 
