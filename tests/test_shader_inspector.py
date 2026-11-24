@@ -99,7 +99,7 @@ def test_parses_common_rdef_resource_bindings():
     payload = header + resource + b"albedoTexture\x00"
     report = inspect_shader_bytes(_container([("RDEF", payload)]))
     reflection = report["chunks"][0]["resource_reflection"]
-    assert reflection["assessment"] == "common_rdef_resource_table_parsed"
+    assert reflection["assessment"] == "common_rdef_reflection_records_parsed"
     assert reflection["resources"][0]["name"] == "albedoTexture"
     assert reflection["resources"][0]["input_type"] == "texture"
     assert reflection["resources"][0]["dimension"] == "texture2d"
@@ -181,10 +181,10 @@ def test_rdef_parses_constant_buffers_and_variable_layout_metadata():
     header = struct.pack("<7I", 1, 28, 0, 0, 0x50050, 0, 0)
     cbuffer = struct.pack("<6I", names_offset, 1, 52, 64, 2, 0)
     variable = struct.pack(
-        "<10I", names_offset + len(b"PerFrame\\x00"), 16, 16, 1,
+        "<10I", names_offset + len(b"PerFrame\x00"), 16, 16, 1,
         0, 0, 0, 0, 0, 0,
     )
-    payload = header + cbuffer + variable + b"PerFrame\\x00" + b"viewMatrix\\x00"
+    payload = header + cbuffer + variable + b"PerFrame\x00" + b"viewMatrix\x00"
     report = inspect_shader_bytes(_container([("RDEF", payload)]))
     reflection = report["chunks"][0]["resource_reflection"]
     assert reflection["assessment"] == "common_rdef_reflection_records_parsed"
@@ -216,8 +216,8 @@ def test_rdef_flags_variable_range_outside_declared_constant_buffer():
     payload = (
         struct.pack("<7I", 1, 28, 0, 0, 0, 0, 0)
         + struct.pack("<6I", names_offset, 1, 52, 16, 0, 0)
-        + struct.pack("<10I", names_offset + len(b"CB\\x00"), 12, 8, 0, 0, 0, 0, 0, 0, 0)
-        + b"CB\\x00" + b"lateField\\x00"
+        + struct.pack("<10I", names_offset + len(b"CB\x00"), 12, 8, 0, 0, 0, 0, 0, 0, 0)
+        + b"CB\x00" + b"lateField\x00"
     )
     report = inspect_shader_bytes(_container([("RDEF", payload)]))
     variable = report["chunks"][0]["resource_reflection"]["constant_buffers"][0]["variables"][0]
