@@ -46,3 +46,33 @@ def test_rejects_bad_chunk_offset_and_non_dxbc_data():
     struct.pack_into("<I", malformed, 32, 0xFFFFFFF0)
     with pytest.raises(ShaderFormatError):
         inspect_shader_bytes(bytes(malformed))
+
+def test_inspects_spirv_header_without_parsing_instruction_stream():
+    from orion_core.shader_inspector import inspect_spirv_bytes
+
+    data = struct.pack("<5I", 0x07230203, 0x00010600, 7, 128, 0) + b"\x00\x00\x00\x00"
+    report = inspect_spirv_bytes(data)
+    assert report["format"] == "spirv"
+    assert report["version"] == "1.6"
+    assert report["id_bound"] == 128
+    assert report["instruction_stream_parsed"] is False
+    assert report["compatibility_established"] is False
+
+
+def test_rejects_invalid_spirv_header_fields():
+    from orion_core.shader_inspector import inspect_spirv_bytes
+
+    with pytest.raises(ShaderFormatError, match="id bound"):
+        inspect_spirv_bytes(struct.pack("<5I", 0x07230203, 0x00010000, 0, 0, 0))
+    with pytest.raises(ShaderFormatError, match="schema"):
+        inspect_spirv_bytes(struct.pack("<5I", 0x07230203, 0x00010000, 0, 1, 1))
+
+
+def test_shader_file_detects_binary_magic_even_with_wrong_extension(tmp_path):
+    from orion_core.shader_inspector import inspect_shader_file
+
+    path = tmp_path / "shader.bin"
+    path.write_bytes(struct.pack("<5I", 0x07230203, 0x00010000, 0, 10, 0))
+    report = inspect_shader_file(path)
+    assert report["format"] == "spirv"
+    assert report["extension_format_match"] is True
