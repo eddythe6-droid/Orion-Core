@@ -228,6 +228,21 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         elif target.open("rb").read(4) in (b"CON ", b"LIVE", b"PIRS"):
             try:
                 stfs_report = inspect_stfs(target)
+                stat = target.stat()
+                records.append({
+                    "path": target.name,
+                    "size_bytes": stat.st_size,
+                    "extension": target.suffix.lower(),
+                    "detected_type": "xbox_stfs",
+                    "sha256": _sha256(target, stat.st_size) if hash_files else None,
+                    "pe_analysis": None,
+                    "scarlett_analysis": None,
+                    "dependency_analysis": None,
+                    "stfs_metadata": stfs_report,
+                    "xex_metadata": None,
+                    "shader_analysis": None,
+                })
+                counts["xbox_stfs"] = 1
             except STFSError as exc:
                 warnings.append(f"STFS parser: {exc}")
                 add_file(target, target.name)
@@ -309,7 +324,14 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         "schema_version": INSPECTOR_SCHEMA_VERSION,
         "tool": "orion_game_inspector",
         "source_name": target.name,
-        "source_kind": "directory" if target.is_dir() else ("xdvdfs" if xdvdfs_report else ("iso9660" if iso_report else ("zip_archive" if is_archive else "file"))),
+        "source_kind": (
+            "directory" if target.is_dir()
+            else "xdvdfs" if xdvdfs_report
+            else "iso9660" if iso_report
+            else "xcontent_package" if stfs_report
+            else "zip_archive" if is_archive
+            else "file"
+        ),
         "files_inspected": len(records),
         "type_counts": dict(sorted(counts.items())),
         "shader_summary": shader_summary,
