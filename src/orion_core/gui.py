@@ -197,7 +197,7 @@ class OrionDashboard:
         title_block.pack(side="left", pady=10)
         tk.Label(title_block, text="Orion-Core", bg="#090e21", fg="#f5f6ff",
                  font=("Segoe UI Semibold", 22)).pack(anchor="w")
-        tk.Label(title_block, text=f"GPU Compatibility Analyzer  v{__version__}",
+        tk.Label(title_block, text=f"Xbox / Windows Game Research Lab  v{__version__}",
                  bg="#090e21", fg="#aab5d6", font=("Segoe UI", 9)).pack(anchor="w")
 
         self.header_status = tk.StringVar(value="ГОТОВО")
@@ -594,6 +594,8 @@ class OrionDashboard:
         ]
         if record.get("sha256"):
             details.append(f"SHA-256: {record['sha256']}")
+        if record.get("sha256_status"):
+            details.append(f"SHA-256 status: {record['sha256_status']}")
         for key, label in (
             ("pe_analysis", "PE"),
             ("scarlett_analysis", "Xbox Series / GDK hint"),
@@ -699,6 +701,33 @@ class OrionDashboard:
             f"  SPIR-V entry points: {shaders.get('spirv_entry_point_count', 0)}",
             "  Байткод и совместимость GPU не валидировались.",
         ])
+
+        xbox = report.get("xbox_series_summary", {})
+        sections.extend([
+            "", "XBOX SERIES / SCARLETT PE EVIDENCE:",
+            f"  PE-файлов с анализом: {xbox.get('pe_files_with_scarlett_assessment', 0)}",
+            f"  PE32+ x64: {xbox.get('pe32_plus_x64_files', 0)}",
+            f"  Файлов с GDK import hints: {xbox.get('xbox_series_gdk_candidate_hints', 0)}",
+            f"  Certificate tables present: {xbox.get('authenticode_certificate_table_present_count', 0)}",
+            "  Authenticode digest/signature и издатель не проверялись.",
+        ])
+        hint_counts = xbox.get("gdk_import_hint_module_counts", {})
+        if hint_counts:
+            sections.append("  GDK/Xbox DLL hints:")
+            for module_name, count in hint_counts.items():
+                sections.append(f"    {module_name}: {count}")
+        for executable in xbox.get("executables", [])[:20]:
+            sections.append(
+                f"  {executable.get('path')}: {executable.get('assessment')} · "
+                f"normal imports {executable.get('normal_import_module_count', 0)} · "
+                f"delay-load {executable.get('delay_load_module_count', 0)}"
+            )
+            for evidence in executable.get("module_evidence", []):
+                sections.append(
+                    f"    {evidence.get('module')} [{evidence.get('load_kind')}] "
+                    f"→ {evidence.get('category')} "
+                    f"({evidence.get('imported_symbol_count', 0)} symbols)"
+                )
         if warnings:
             sections.extend(["", "ПРЕДУПРЕЖДЕНИЯ:"] + [f"  • {warning}" for warning in warnings[:30]])
             if len(warnings) > 30:
