@@ -69,9 +69,11 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
             entry_point = struct.unpack_from("<I", optional, 16)[0]
             subsystem = struct.unpack_from("<H", optional, 68)[0] if len(optional) >= 70 else None
             directory_count = struct.unpack_from("<I", optional, number_offset)[0] if len(optional) >= number_offset + 4 else 0
-            import_rva = import_size = 0
+            import_rva = import_size = delay_import_rva = delay_import_size = 0
             if directory_count > 1 and len(optional) >= directory_offset + 16:
                 import_rva, import_size = struct.unpack_from("<II", optional, directory_offset + 8)
+            if directory_count > 13 and len(optional) >= directory_offset + 14 * 8:
+                delay_import_rva, delay_import_size = struct.unpack_from("<II", optional, directory_offset + 13 * 8)
 
             section_offset = optional_offset + optional_size
             section_table = _read_at(stream, section_offset, section_count * 40, file_size)
@@ -96,6 +98,8 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
             imports: list[str] = []
             import_modules: list[dict[str, Any]] = []
             imported_functions: list[dict[str, Any]] = []
+            delay_import_modules: list[dict[str, Any]] = []
+            delay_imports_truncated = False
             imports_truncated = False
             if import_rva and import_size:
                 import_offset = rva_to_offset(import_rva)
@@ -152,6 +156,52 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
                     if max_descriptors == MAX_IMPORTS:
                         imports_truncated = True
 
+            # IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT (13): 8-DWORD descriptors.
+            if delay_import_rva and delay_import_size:
+                delay_offset = rva_to_offset(delay_import_rva)
+                if delay_offset is None:
+                    delay_imports_truncated = True
+                else:
+                    max_delay_descriptors = min(delay_import_size // 32, MAX_IMPORTS)
+                    terminated = False
+                    for index in range(max_delay_descriptors):
+                        descriptor_offset = delay_offset + index * 32
+                        if descriptor_offset + 32 > file_size:
+                            delay_imports_truncated = True
+                            break
+                        fields = struct.unpack("<IIIIIIII", _read_at(stream, descriptor_offset, 32, file_size))
+                        if not any(fields):
+                            terminated = True
+                            break
+                        attributes, name_value = fields[0], fields[1]
+                        # grAttrs bit 0 means fields contain RVAs; otherwise VAs.
+                        if attributes & 1:
+                            name_rva = name_value
+                        elif image_base is not None and name_value >= image_base:
+                            name_rva = name_value - image_base
+                        else:
+                            delay_imports_truncated = True
+                            continue
+                        name_offset = rva_to_offset(name_rva)
+                        if name_offset is None:
+                            delay_imports_truncated = True
+                            continue
+                        try:
+                            dll_name = _read_c_string(stream, name_offset, file_size)
+                        except PEFormatError:
+                            delay_imports_truncated = True
+                            continue
+                        if dll_name:
+                            delay_import_modules.append({
+                                "dll": dll_name,
+                                "attributes": attributes,
+                                "rva_based": bool(attributes & 1),
+                            })
+                        else:
+                            delay_imports_truncated = True
+                    if not terminated:
+                        delay_imports_truncated = True
+
     except OSError as exc:
         raise PEFormatError(f"cannot read PE file: {type(exc).__name__}: {exc}") from exc
     machine_names = {0x014C: "x86", 0x8664: "x86_64", 0x01C0: "ARM", 0x01C4: "ARMv7", 0xAA64: "ARM64"}
@@ -164,6 +214,8 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
         "characteristics": characteristics, "coff_timestamp": timestamp,
         "sections": sections, "imported_dlls": sorted(set(imports), key=str.casefold),
         "import_modules": import_modules, "imported_functions": imported_functions,
+        "delay_import_modules": delay_import_modules,
+        "delay_imports_truncated_or_unavailable": delay_imports_truncated,
         "imports_truncated_or_unavailable": imports_truncated or bool(import_rva and import_size and not imports),
         "parser_scope": "core_pe_headers_sections_and_bounded_imported_symbols",
         "execution_performed": False,
