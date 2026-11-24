@@ -357,6 +357,29 @@ class OrionDashboard:
                 f"  Xbox-модулей-подсказок: {deps.get('classification_counts', {}).get('xbox_platform_module_hint', 0)}",
                 f"  Оценка Scarlett: {scarlett.get('assessment', 'не определена')}",
             ])
+            resolution = deps.get("local_resolution", {})
+            resolution_counts = resolution.get("counts", {})
+            if resolution:
+                lines.append(
+                    "  Локальная сверка импортов: "
+                    f"совпадений по имени {resolution_counts.get('resolved_name_match', 0)}, "
+                    f"по ordinal {resolution_counts.get('resolved_ordinal_match', 0)}, "
+                    f"перенаправленных {resolution_counts.get('forwarded_export', 0)}, "
+                    f"отсутствующих DLL {resolution_counts.get('missing_module', 0)}, "
+                    f"отсутствующих символов {resolution_counts.get('missing_symbol', 0)}, "
+                    f"неоднозначных DLL {resolution_counts.get('ambiguous_module', 0)}."
+                )
+                for module_result in resolution.get("modules", []):
+                    state = module_result.get("status", "")
+                    if state != "candidate_file_found":
+                        lines.append(f"    DLL {module_result.get('module')}: {state}")
+                    for symbol_result in module_result.get("symbols", []):
+                        if symbol_result.get("status") not in ("resolved_name_match", "resolved_ordinal_match"):
+                            imported = symbol_result.get("import", {})
+                            label = imported.get("name", f"ordinal #{imported.get('ordinal', '?')}")
+                            lines.append(f"      {label}: {symbol_result.get('status')}")
+            lines.extend([
+            ])
             exports = pe.get("exported_functions", [])
             for exported in exports[:30]:
                 names = ", ".join(exported.get("names", [])) or f"ordinal #{exported.get('ordinal')}"
