@@ -663,6 +663,10 @@ class OrionDashboard:
         self._scan_success = False
         self.report = None
         self.status.set("Выполняется диагностика…")
+        self.header_status.set("СБОР ДАННЫХ")
+        self.footer_state_var.set("Выполняется системная инвентаризация")
+        self._set_stage(0, "running", "Сбор сведений об ОС, CPU и памяти")
+        self._set_stage(1, "running", "Запрос Windows CIM / реестра")
         self.overview_text.set("Сбор системной информации. Смотрите подробные этапы в консоли.")
         self._log("INFO", "Запрошен запуск read-only диагностики.")
         self.worker = threading.Thread(target=self._scan_worker, daemon=True)
@@ -701,6 +705,9 @@ class OrionDashboard:
                 elif kind == "done":
                     self.scan_button.configure(state="normal")
                     self.status.set("Готово" if self._scan_success else "Завершено с ошибкой")
+                    self.header_status.set("ГОТОВО" if self._scan_success else "ЕСТЬ ОШИБКИ")
+                    if not self._scan_success:
+                        self.footer_state_var.set("Проверьте сообщения ERROR в консоли")
                 elif kind == "game_report":
                     self.game_inspection_report = payload
                     self._render_game_report(payload)
@@ -708,6 +715,13 @@ class OrionDashboard:
                     self.game_button.configure(state="normal")
                     self.game_progress.stop()
                     self.status.set("Анализ игры завершён" if payload else "Анализ игры завершился с ошибкой")
+                    if payload:
+                        self._set_stage(3, "complete", "Метаданные шейдеров проверены")
+                        self._set_stage(4, "complete", "Инвентаризация файлов завершена")
+                        self.footer_state_var.set("Game Inspector сформировал отчёт; файлы не запускались")
+                    else:
+                        self._set_stage(3, "warning", "Анализ не завершён")
+                        self._set_stage(4, "warning", "Анализ не завершён")
                 elif kind == "gpu_report":
                     self.gpu_report = payload
                     adapters = payload.get("adapters", [])
@@ -751,10 +765,13 @@ class OrionDashboard:
                     self.overview_text.set(details)
                     self._set_detail("GPU / D3D12", details)
                     self._set_detail("Обзор", details)
+                    self._update_gpu_dashboard(payload)
+                    self._show_details("GPU / D3D12", update_nav=True)
                 elif kind == "gpu_done":
                     self.scan_button.configure(state="normal")
                     self.gpu_button.configure(state="normal")
                     self.status.set("D3D12-тест завершён" if payload else "D3D12-тест завершился с ошибкой")
+                    self.header_status.set("D3D12 ГОТОВ" if payload else "D3D12 ОШИБКА")
         except queue.Empty:
             pass
         self.root.after(100, self._drain_events)
@@ -970,6 +987,9 @@ class OrionDashboard:
         self.game_button.configure(state="disabled")
         self.game_progress.start(12)
         self.status.set("Выполняется анализ игры…")
+        self.header_status.set("АНАЛИЗ ИГРЫ")
+        self._set_stage(3, "running", "Game Inspector обрабатывает файлы")
+        self._set_stage(4, "running", "Инвентаризация ресурсов")
         self._set_detail("Анализ игры", "Анализ выполняется. Большие папки могут обрабатываться некоторое время.")
         self._log("INFO", f"Начат read-only анализ игрового материала: {path}")
         self.worker = threading.Thread(target=self._game_inspection_worker, args=(path,), daemon=True)
@@ -1086,7 +1106,7 @@ class OrionDashboard:
                 lines.append(f"{item['created_at']} | {item['kind']} | ID: {item['id']}")
             view = "\n".join(lines)
         self._set_detail("История", view)
-        self.detail_notebook.select(list(self.detail_views).index("История"))
+        self._show_details("История", update_nav=False)
         self._log("INFO", f"История обновлена: записей {len(records)}.")
 
     def choose_gpu_probe(self) -> None:
@@ -1105,6 +1125,9 @@ class OrionDashboard:
         self.gpu_button.configure(state="disabled")
         self.scan_button.configure(state="disabled")
         self.status.set("Выполняется нативный D3D12-тест…")
+        self.header_status.set("D3D12 PROBE")
+        self._set_stage(2, "running", "Создание D3D12 device и runtime-тесты")
+        self._set_stage(5, "running", "Проверка очереди, ресурсов и рендера")
         self._log("WARNING", "D3D12 probe выполняет реальные read-only GPU-команды; сохраните работу перед запуском.")
         self._log("INFO", f"Запуск выбранного пользователем файла: {path}")
         self.worker = threading.Thread(target=self._gpu_probe_worker, args=(path,), daemon=True)
