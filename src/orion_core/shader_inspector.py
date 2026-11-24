@@ -119,18 +119,59 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
     }
 
 
+def inspect_spirv_bytes(data: bytes) -> dict[str, Any]:
+    """Recognize and validate only the fixed SPIR-V module header."""
+    if len(data) < 4 or data[:4] not in (b"\x03\x02#\x07", b"\x07#\x02\x03"):
+        raise ShaderFormatError("missing SPIR-V magic")
+    if len(data) < 20:
+        raise ShaderFormatError("SPIR-V module header is truncated")
+    endian = "<" if data[:4] == b"\x03\x02#\x07" else ">"
+    magic, version, generator, bound, schema = struct.unpack_from(endian + "5I", data, 0)
+    major = (version >> 16) & 0xFF
+    minor = (version >> 8) & 0xFF
+    version_assessment = "recognized_version" if major == 1 and minor <= 6 else "unknown_or_future_version"
+    if bound == 0:
+        raise ShaderFormatError("SPIR-V id bound must be non-zero")
+    if schema != 0:
+        raise ShaderFormatError("SPIR-V reserved schema word must be zero")
+    return {
+        "format": "spirv", "magic": f"0x{magic:08x}",
+        "endianness": "little" if endian == "<" else "big",
+        "version_word": f"0x{version:08x}", "version": f"{major}.{minor}",
+        "version_assessment": version_assessment, "generator_word": generator,
+        "id_bound": bound, "schema": schema, "module_bytes": len(data),
+        "instruction_stream_parsed": False, "bytecode_validated": False,
+        "execution_performed": False, "compatibility_established": False,
+        "limitations": [
+            "Only the fixed five-word SPIR-V header is inspected.",
+            "Instruction stream, capabilities, extensions, entry points, descriptors, and execution modes are not decoded.",
+        ],
+    }
+
+
 def inspect_shader_file(path: str | Path) -> dict[str, Any]:
-    """Inspect a bounded on-disk shader file; no archive extraction is performed."""
+    """Inspect a bounded DXBC or SPIR-V file; no archive extraction is performed."""
     target = Path(path)
     size = target.stat().st_size
     if size > MAX_SHADER_BYTES:
         return {
-            "assessment": "size_limit_exceeded",
-            "size_bytes": size,
-            "parser_limit_bytes": MAX_SHADER_BYTES,
-            "bytecode_validated": False,
+            "assessment": "size_limit_exceeded", "size_bytes": size,
+            "parser_limit_bytes": MAX_SHADER_BYTES, "bytecode_validated": False,
             "execution_performed": False,
         }
     with target.open("rb") as stream:
         data = stream.read(MAX_SHADER_BYTES + 1)
-    return inspect_shader_bytes(data)
+    if data.startswith(b"DXBC"):
+        report = inspect_shader_bytes(data)
+    elif data.startswith((b"\x03\x02#\x07", b"\x07#\x02\x03")):
+        report = inspect_spirv_bytes(data)
+    else:
+        raise ShaderFormatError("unrecognized shader binary signature")
+    suffix = target.suffix.lower()
+    expected = {".cso": {"dxbc", "spirv"}, ".dxbc": {"dxbc"}, ".dxil": {"dxbc"}, ".spv": {"spirv"}}
+    actual = "spirv" if report["format"] == "spirv" else "dxbc"
+    report["file_extension"] = suffix
+    report["extension_format_match"] = suffix not in expected or actual in expected[suffix]
+    if not report["extension_format_match"]:
+        report["extension_assessment"] = "extension_does_not_match_detected_binary_format"
+    return report
