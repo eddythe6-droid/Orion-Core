@@ -325,10 +325,18 @@ class OrionDashboard:
             activeforeground="#ffffff", selectcolor="#171f3a",
             highlightthickness=0, bd=0, font=("Segoe UI", 8)
         ).pack(side="left")
+        ttk.Button(
+            options_row, text="Подробный отчёт",
+            command=lambda: self._show_details("Анализ игры", update_nav=True)
+        ).pack(side="right", padx=(5, 0))
+        ttk.Button(
+            options_row, text="Экспорт JSON",
+            command=self.export_game_report
+        ).pack(side="right", padx=5)
         tk.Label(
             options_row, text="Только чтение · без распаковки · без запуска файлов",
             bg="#10172c", fg="#7182a9", font=("Segoe UI", 8)
-        ).pack(side="right")
+        ).pack(side="right", padx=8)
 
         stats = tk.Frame(parent, bg="#080d1d")
         stats.grid(row=1, column=0, sticky="ew", pady=(0, 8))
@@ -1504,10 +1512,12 @@ class OrionDashboard:
         """Persist the most recent completed diagnostic or native GPU report."""
         if self.gpu_report is not None:
             report, kind = self.gpu_report, "native_d3d12_probe"
+        elif self.game_inspection_report is not None:
+            report, kind = self.game_inspection_report, "game_inspection"
         elif self.report is not None:
             report, kind = self.report, "system_diagnostics"
         else:
-            messagebox.showinfo("Orion-Core", "Сначала выполните системную диагностику или D3D12-тест.")
+            messagebox.showinfo("Orion-Core", "Сначала исследуйте игровой источник или выполните диагностику ПК.")
             return
         try:
             record = self.history_store.add_report(report, kind=kind)
@@ -1643,15 +1653,22 @@ class OrionDashboard:
                 messagebox.showerror("Orion-Core", f"Не удалось экспортировать отчёт: {exc}")
 
     def export_report(self) -> None:
-        if not self.report:
-            messagebox.showinfo("Orion-Core", "Сначала запустите диагностику.")
+        if not any((self.game_inspection_report, self.report, self.gpu_report)):
+            messagebox.showinfo("Orion-Core", "Сначала исследуйте игровой источник или выполните диагностику ПК.")
             return
         path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
         if path:
-            payload = {"system_diagnostics": self.report, "native_d3d12_probe": self.gpu_report}
+            payload = {
+                "game_inspection": self.game_inspection_report,
+                "system_diagnostics": self.report,
+                "native_d3d12_probe": self.gpu_report,
+            }
             try:
-                Path(path).write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-                self._log("SUCCESS", "Объединённый JSON-отчёт экспортирован.")
+                Path(path).write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8"
+                )
+                self._log("SUCCESS", "Объединённый исследовательский JSON-отчёт экспортирован.")
             except OSError as exc:
                 messagebox.showerror("Orion-Core", f"Не удалось экспортировать отчёт: {exc}")
 
