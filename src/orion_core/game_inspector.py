@@ -17,6 +17,7 @@ from .xdvdfs import inspect_xdvdfs, XDVDFSError
 from .stfs import inspect_stfs, inspect_svod_directory, STFSError
 from .xex import inspect_xex, XEXError
 from .scarlett import inspect_scarlett_pe
+from .dependency_analysis import build_dependency_report
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -112,6 +113,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
             kind = _classify(file_path, header)
             pe_analysis = None
             scarlett_analysis = None
+            dependency_analysis = None
             stfs_metadata = None
             xex_metadata = None
             if kind == "xex2":
@@ -128,6 +130,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 try:
                     pe_analysis = analyze_pe(file_path)
                     scarlett_analysis = inspect_scarlett_pe(file_path)
+                    dependency_analysis = build_dependency_report(pe_analysis)
                 except PEFormatError as exc:
                     pe_analysis = {"valid_pe_structure": False, "error": str(exc)}
                     scarlett_analysis = {"assessment": "invalid_or_unsupported_pe", "error": str(exc),
@@ -140,6 +143,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 "sha256": _sha256(file_path, stat.st_size) if hash_files else None,
                 "pe_analysis": pe_analysis,
                 "scarlett_analysis": scarlett_analysis,
+                "dependency_analysis": dependency_analysis,
                 "stfs_metadata": stfs_metadata,
                 "xex_metadata": xex_metadata,
             })
