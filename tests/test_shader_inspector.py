@@ -229,9 +229,9 @@ def test_rdef_marks_invalid_type_and_default_value_offsets():
     payload = (
         struct.pack("<7I", 1, 28, 0, 0, 0, 0, 0)
         + struct.pack("<6I", names_offset, 1, 52, 32, 0, 0)
-        + struct.pack("<10I", names_offset + len(b"CB\\x00"), 0, 16, 0,
+        + struct.pack("<10I", names_offset + len(b"CB\x00"), 0, 16, 0,
                       0xFFFFFFF0, 0xFFFFFFF0, 0, 0, 0, 0)
-        + b"CB\\x00" + b"data\\x00"
+        + b"CB\x00" + b"data\x00"
     )
     report = inspect_shader_bytes(_container([("RDEF", payload)]))
     variable = report["chunks"][0]["resource_reflection"]["constant_buffers"][0]["variables"][0]
