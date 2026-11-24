@@ -39,7 +39,7 @@ jobs:
           --name Orion-Core
           --paths src
           --collect-submodules orion_core
-          src/orion_core/gui.py
+          orion_core_launcher.py
 
       - name: Verify executable
         shell: pwsh
