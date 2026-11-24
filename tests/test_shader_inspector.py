@@ -76,3 +76,18 @@ def test_shader_file_detects_binary_magic_even_with_wrong_extension(tmp_path):
     report = inspect_shader_file(path)
     assert report["format"] == "spirv"
     assert report["extension_format_match"] is True
+
+def test_rejects_overlapping_dxbc_chunks():
+    malformed = bytearray(_container([("SHEX", b"1234"), ("SHDR", b"5678")]))
+    first_offset = struct.unpack_from("<I", malformed, 32)[0]
+    struct.pack_into("<I", malformed, 36, first_offset + 4)
+    with pytest.raises(ShaderFormatError, match="overlapping"):
+        inspect_shader_bytes(bytes(malformed))
+
+
+def test_rejects_dxbc_container_with_duplicate_offsets():
+    malformed = bytearray(_container([("SHEX", b"1234"), ("SHDR", b"5678")]))
+    first_offset = struct.unpack_from("<I", malformed, 32)[0]
+    struct.pack_into("<I", malformed, 36, first_offset)
+    with pytest.raises(ShaderFormatError, match="duplicate"):
+        inspect_shader_bytes(bytes(malformed))
