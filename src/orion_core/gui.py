@@ -698,6 +698,9 @@ class OrionDashboard:
             f"  Файлов: {shaders.get('files_with_shader_analysis', 0)}",
             f"  Форматы: {json.dumps(shaders.get('formats', {}), ensure_ascii=False)}",
             f"  Resource bindings: {shaders.get('rdef_resource_binding_count', 0)}",
+            f"  Constant buffers: {shaders.get('rdef_constant_buffer_count', 0)}",
+            f"  Constant-buffer variables: {shaders.get('rdef_constant_buffer_variable_count', 0)}",
+            f"  Declared constant-buffer bytes: {shaders.get('rdef_constant_buffer_declared_bytes', 0)}",
             f"  SPIR-V entry points: {shaders.get('spirv_entry_point_count', 0)}",
             "  Байткод и совместимость GPU не валидировались.",
         ])
