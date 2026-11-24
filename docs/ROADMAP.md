@@ -77,7 +77,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Add delay-load module presence checks (delay-load symbols remain unparsed)
 - [x] Add curated exact-name Win32 API family catalogue with explicit non-equivalence warnings
 - [x] Add graphics dependency assessment for D3D12/D3D11/DXGI/Vulkan/OpenGL and selected vendor modules
-- [x] Inventory shader-like and texture-like asset paths by extension with explicit evidence limits
+- [x] Inventory shader-like and texture-like asset paths by extension with explicit evidence limits\n- [x] Parse bounded DXBC container/chunk metadata and SHDR/SHEX shader-model tokens\n- [x] Extract basic DXIL program-header fields without validating bitcode
 - [x] Add searchable dependency table, selection details, separate file/folder pickers and analysis progress indicator
 - [x] Add guided Game Inspector workspace with file/folder picker, asynchronous analysis, PE dependency/export summary and JSON export
 - [ ] Package a Windows desktop build and validate on physical hardware
