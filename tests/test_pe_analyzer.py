@@ -159,8 +159,8 @@ def make_pe_with_exports(path):
     struct.pack_into("<II", data, 0x240, 0x1100, 0x1080)
     struct.pack_into("<I", data, 0x248, 0x1060)
     struct.pack_into("<H", data, 0x24C, 0)
-    data[0x260:0x267] = b"DoWork\\0"
-    data[0x280:0x28C] = b"OTHER.Func\\0"
+    data[0x260:0x267] = b"DoWork\0"
+    data[0x280:0x28C] = b"OTHER.Func\0"
     path.write_bytes(data)
 
 
