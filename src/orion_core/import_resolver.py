@@ -12,7 +12,7 @@ def build_local_export_index(files: list[dict[str, Any]]) -> dict[str, list[dict
         pe = record.get("pe_analysis") or {}
         if not pe.get("valid_pe_structure"):
             continue
-        name = PurePosixPath(str(record.get("path", ""))).name.casefold()
+        name = PurePosixPath(str(record.get("path", "")).replace("\\\\", "/")).name.casefold()
         if not name:
             continue
         exports = pe.get("exported_functions", [])
