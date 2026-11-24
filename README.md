@@ -8,6 +8,8 @@
 
 ### Game Inspector
 
+The desktop dashboard includes a dedicated **Анализ игры** workspace: choose a directory, EXE/DLL, ISO/XISO or supported package, inspect locally, review PE import/export counts and Xbox dependency hints, then export the full JSON report. The interface does not execute discovered files.
+
 The Game Inspector creates a JSON inventory from a game directory, a supported disc image, a package file, or a ZIP archive.
 
 | Format / source | Current inspection |
@@ -140,6 +142,7 @@ See [RESEARCH_CAPABILITY_CATALOG](docs/RESEARCH_CAPABILITY_CATALOG.md).
 - [XDVDFS / XISO](docs/XDVDFS.md)
 - [Xbox 360 XEX2 metadata](docs/XEX2.md)\n- [Xbox Series / Scarlett PE analysis](docs/SCARLETT_PE.md)
 - [PE dependency triage](docs/PE_DEPENDENCY_TRIAGE.md)
+- [PE export analysis](docs/PE_EXPORT_ANALYSIS.md)
 - [Native D3D12 probe](docs/NATIVE_D3D12_PROBE.md)
 - [Graphics harness](docs/GRAPHICS_HARNESS.md)
 - [Graphics research deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md)
