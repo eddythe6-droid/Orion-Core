@@ -345,12 +345,12 @@ class OrionDashboard:
         stages_panel, stages_body = self._panel(middle, "Этапы проверки", "▥")
         stages_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         stage_names = (
-            "Сбор информации о системе",
-            "Инвентаризация Windows и драйверов",
-            "Проверка устройства DirectX 12",
-            "Анализ шейдеров и форматов",
-            "Инвентаризация текстур и ресурсов",
-            "Проверка операций графического конвейера",
+            "Информация об ОС и CPU",
+            "Windows и драйверы",
+            "Устройство DirectX 12",
+            "Шейдеры и форматы",
+            "Текстуры и ресурсы",
+            "GPU pipeline smoke tests",
         )
         self.stage_vars: list[tk.StringVar] = []
         self.stage_bars: list[ttk.Progressbar] = []
@@ -371,7 +371,7 @@ class OrionDashboard:
             self.stage_bars.append(bar)
             state = tk.StringVar(value="Ожидает")
             self.stage_vars.append(state)
-            detail = tk.Label(row, textvariable=state, width=16, anchor="e",
+            detail = tk.Label(row, textvariable=state, width=14, anchor="e",
                               bg="#10172c", fg="#7785a8",
                               font=("Segoe UI", 8))
             detail.pack(side="right", padx=(2, 1))
@@ -410,30 +410,7 @@ class OrionDashboard:
         self.probe_canvas = tk.Canvas(graph_body, bg="#050a16", height=108,
                                       highlightthickness=1, highlightbackground="#29375f")
         self.probe_canvas.pack(fill="x", pady=(2, 8))
-        self.probe_canvas.create_line(0, 27, 400, 27, fill="#101c34")
-        self.probe_canvas.create_line(0, 54, 400, 54, fill="#101c34")
-        self.probe_canvas.create_line(0, 81, 400, 81, fill="#101c34")
-        self.probe_canvas.create_line(65, 0, 65, 110, fill="#101c34")
-        self.probe_canvas.create_line(130, 0, 130, 110, fill="#101c34")
-        self.probe_canvas.create_line(195, 0, 195, 110, fill="#101c34")
-        self.probe_canvas.create_line(260, 0, 260, 110, fill="#101c34")
-        # Decorative shader color-pattern preview; it is not a live GPU result.
-        self.probe_canvas.create_polygon(
-            170, 7, 270, 98, 70, 98,
-            fill="#18294f", outline="#639cff", width=2
-        )
-        self.probe_canvas.create_polygon(
-            170, 7, 170, 98, 70, 98, fill="#173f9b", outline=""
-        )
-        self.probe_canvas.create_polygon(
-            170, 7, 270, 98, 170, 98, fill="#126b48", outline=""
-        )
-        self.probe_canvas.create_polygon(
-            70, 98, 270, 98, 170, 98, fill="#542752", outline=""
-        )
-        self.probe_canvas.create_line(170, 7, 170, 98, fill="#8ab8ff", width=1)
-        self.probe_canvas.create_text(170, 84, text="PREVIEW", fill="#ffffff",
-                                     font=("Segoe UI Semibold", 7))
+        self.probe_canvas.bind("<Configure>", self._draw_probe_preview)
         self.probe_state_var = tk.StringVar(value="Нативный тест не запускался")
         tk.Label(graph_body, textvariable=self.probe_state_var, bg="#10172c",
                  fg="#aab8da", font=("Segoe UI", 8), wraplength=230,
@@ -441,6 +418,45 @@ class OrionDashboard:
         self.gpu_button = ttk.Button(graph_body, text="Выбрать D3D12 Probe…",
                                      command=self.choose_gpu_probe)
         self.gpu_button.pack(fill="x")
+
+    def _draw_probe_preview(self, event: tk.Event | None = None) -> None:
+        """Draw a responsive decorative color triangle, not a GPU benchmark result."""
+        canvas = self.probe_canvas
+        width = max(120, event.width if event is not None else canvas.winfo_width())
+        height = max(80, event.height if event is not None else canvas.winfo_height())
+        canvas.delete("all")
+        for y in range(25, height, 25):
+            canvas.create_line(0, y, width, y, fill="#101c34")
+        for x in range(40, width, 40):
+            canvas.create_line(x, 0, x, height, fill="#101c34")
+
+        half = min(width * 0.36, height * 0.43)
+        center_x = width / 2
+        top_y = max(5, height * 0.06)
+        base_y = height * 0.90
+        left_x, right_x = center_x - half, center_x + half
+        mid_y = top_y + (base_y - top_y) * 0.56
+
+        canvas.create_polygon(
+            center_x, top_y, right_x, base_y, left_x, base_y,
+            fill="#18294f", outline="#639cff", width=2
+        )
+        canvas.create_polygon(
+            center_x, top_y, center_x, mid_y, left_x, base_y,
+            fill="#173f9b", outline=""
+        )
+        canvas.create_polygon(
+            center_x, top_y, right_x, base_y, center_x, mid_y,
+            fill="#126b48", outline=""
+        )
+        canvas.create_polygon(
+            left_x, base_y, right_x, base_y, center_x, mid_y,
+            fill="#542752", outline=""
+        )
+        canvas.create_line(center_x, top_y, center_x, base_y,
+                           fill="#8ab8ff", width=1)
+        canvas.create_text(center_x, base_y - 10, text="PREVIEW",
+                           fill="#ffffff", font=("Segoe UI Semibold", 7))
 
     def _build_details_page(self, parent: tk.Misc) -> None:
         self.overview_text = tk.StringVar(
@@ -717,8 +733,8 @@ class OrionDashboard:
         self.status.set("Выполняется диагностика…")
         self.header_status.set("СБОР ДАННЫХ")
         self.footer_state_var.set("Выполняется системная инвентаризация")
-        self._set_stage(0, "running", "Сбор сведений об ОС, CPU и памяти")
-        self._set_stage(1, "running", "Запрос Windows CIM / реестра")
+        self._set_stage(0, "running", "Сбор данных")
+        self._set_stage(1, "running", "Windows CIM")
         self.overview_text.set("Сбор системной информации. Смотрите подробные этапы в консоли.")
         self._log("INFO", "Запрошен запуск read-only диагностики.")
         self.worker = threading.Thread(target=self._scan_worker, daemon=True)
@@ -888,9 +904,9 @@ class OrionDashboard:
         )
         self._set_stage(0, "complete", "Системная информация собрана")
         if win.get("supported"):
-            self._set_stage(1, "complete", "Windows-данные получены")
+            self._set_stage(1, "complete", "Готово")
         else:
-            self._set_stage(1, "warning", "Инвентаризация Windows недоступна")
+            self._set_stage(1, "warning", "Нет доступа")
         self.footer_state_var.set("Системный отчёт сформирован; игровые и GPU-тесты ещё не запускались")
         self.header_status.set("СИСТЕМА ПРОВЕРЕНА")
         self._log(
@@ -911,8 +927,8 @@ class OrionDashboard:
             self.verdict_var.set("Недостаточно данных")
             self.verdict_note_var.set("D3D12 probe не подтвердил создание аппаратного устройства")
             self.probe_state_var.set("D3D12 runtime: аппаратный адаптер не прошёл проверку")
-            self._set_stage(2, "warning", "Аппаратный D3D12 device не создан")
-            self._set_stage(5, "warning", "Операции GPU не подтверждены")
+            self._set_stage(2, "warning", "Device не создан")
+            self._set_stage(5, "warning", "Не подтверждено")
             self.metric_vars["feature"].set("Нет аппаратного device")
             self.metric_vars["vram"].set("Нет данных")
             self._log("WARNING", "D3D12 probe не подтвердил аппаратное устройство.")
@@ -951,7 +967,7 @@ class OrionDashboard:
             f"GPU runtime smoke tests: {passed}/{len(tests)} успешно; ошибок: {failed}. "
             "Это не игровой бенчмарк."
         )
-        self._set_stage(2, "complete", f"D3D12 device создан · FL {feature}")
+        self._set_stage(2, "complete", f"FL {feature}")
         self._set_stage(5, "complete" if failed == 0 and passed == len(tests) else "warning",
                         f"GPU smoke tests: {passed}/{len(tests)}")
         self.verdict_var.set("D3D12 runtime проверен")
@@ -1042,8 +1058,8 @@ class OrionDashboard:
         self.game_progress.start(12)
         self.status.set("Выполняется анализ игры…")
         self.header_status.set("АНАЛИЗ ИГРЫ")
-        self._set_stage(3, "running", "Game Inspector обрабатывает файлы")
-        self._set_stage(4, "running", "Инвентаризация ресурсов")
+        self._set_stage(3, "running", "Анализ файлов")
+        self._set_stage(4, "running", "Инвентаризация")
         self._set_detail("Анализ игры", "Анализ выполняется. Большие папки могут обрабатываться некоторое время.")
         self._log("INFO", f"Начат read-only анализ игрового материала: {path}")
         self.worker = threading.Thread(target=self._game_inspection_worker, args=(path,), daemon=True)
@@ -1194,8 +1210,8 @@ class OrionDashboard:
         self.scan_button.configure(state="disabled")
         self.status.set("Выполняется нативный D3D12-тест…")
         self.header_status.set("D3D12 PROBE")
-        self._set_stage(2, "running", "Создание D3D12 device и runtime-тесты")
-        self._set_stage(5, "running", "Проверка очереди, ресурсов и рендера")
+        self._set_stage(2, "running", "D3D12 device")
+        self._set_stage(5, "running", "GPU операции")
         self._log("WARNING", "D3D12 probe выполняет реальные read-only GPU-команды; сохраните работу перед запуском.")
         self._log("INFO", f"Запуск выбранного пользователем файла: {path}")
         self.worker = threading.Thread(target=self._gpu_probe_worker, args=(path,), daemon=True)
