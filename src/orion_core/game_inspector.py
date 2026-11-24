@@ -305,6 +305,9 @@ def inspect_game_path(
     shader_stages: dict[str, int] = {}
     shader_resource_types: dict[str, int] = {}
     shader_resource_bindings = 0
+    shader_constant_buffers = 0
+    shader_constant_buffer_variables = 0
+    shader_constant_buffer_bytes = 0
     spirv_capabilities: dict[str, int] = {}
     spirv_extensions: dict[str, int] = {}
     spirv_entry_points = 0
@@ -329,6 +332,10 @@ def inspect_game_path(
                 shader_resource_bindings += 1
                 resource_type = resource.get("input_type", "unknown")
                 shader_resource_types[resource_type] = shader_resource_types.get(resource_type, 0) + 1
+            for constant_buffer in reflection.get("constant_buffers", []):
+                shader_constant_buffers += 1
+                shader_constant_buffer_bytes += int(constant_buffer.get("size_bytes", 0))
+                shader_constant_buffer_variables += len(constant_buffer.get("variables", []))
     shader_summary = {
         "files_with_shader_analysis": len(shader_records),
         "formats": dict(sorted(shader_formats.items())),
@@ -336,6 +343,9 @@ def inspect_game_path(
         "dxbc_shader_stages": dict(sorted(shader_stages.items())),
         "rdef_resource_binding_count": shader_resource_bindings,
         "rdef_resource_types": dict(sorted(shader_resource_types.items())),
+        "rdef_constant_buffer_count": shader_constant_buffers,
+        "rdef_constant_buffer_variable_count": shader_constant_buffer_variables,
+        "rdef_constant_buffer_declared_bytes": shader_constant_buffer_bytes,
         "spirv_capability_occurrences": dict(sorted(spirv_capabilities.items())),
         "spirv_extension_occurrences": dict(sorted(spirv_extensions.items())),
         "spirv_entry_point_count": spirv_entry_points,
