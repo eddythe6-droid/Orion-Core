@@ -79,7 +79,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Read-only directory/file inventory with basic signature detection
 - [x] Metadata-only ZIP member listing without extraction
 - [x] Optional bounded SHA-256 hashing and JSON inspection reports
-- [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser
+- [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser\n- [x] Add separate Xbox Series / Scarlett PE32+ x64 candidate assessment with conservative GDK import-name hints (not authenticity verification)
 - [x] Research and parse public XContent/STFS metadata headers (`CON `, `LIVE`, `PIRS`) without signature/hash verification
 - [x] Identify common GOD/SVOD sibling header + `.data/DataNNNN` layout by metadata only
 - [x] Parse documented public XEX2 wrapper metadata (fixed header, optional-header directory, entry point/base and execution info)
@@ -104,4 +104,4 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Verify SVOD block/hash-table layout against independent public specifications and lawful samples; payload reconstruction intentionally out of current scope.
 - [ ] Validate parsers against legally obtained, unprotected sample images and record format coverage.
 
-Current parser scope and limitations: see `GAME_INSPECTOR.md` and `XDVDFS.md`.
+Current parser scope and limitations: see `GAME_INSPECTOR.md`, `XDVDFS.md`, `XEX2.md`, and `SCARLETT_PE.md`.
