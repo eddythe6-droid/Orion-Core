@@ -256,6 +256,8 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
     shader_formats: dict[str, int] = {}
     shader_assessments: dict[str, int] = {}
     shader_stages: dict[str, int] = {}
+    shader_resource_types: dict[str, int] = {}
+    shader_resource_bindings = 0
     for item in shader_records:
         analysis = item["shader_analysis"]
         fmt = analysis.get("format", "unrecognized")
@@ -265,11 +267,19 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         for program in analysis.get("shader_programs", []):
             stage = program.get("stage", "unknown")
             shader_stages[stage] = shader_stages.get(stage, 0) + 1
+        for chunk in analysis.get("chunks", []):
+            reflection = chunk.get("resource_reflection", {})
+            for resource in reflection.get("resources", []):
+                shader_resource_bindings += 1
+                resource_type = resource.get("input_type", "unknown")
+                shader_resource_types[resource_type] = shader_resource_types.get(resource_type, 0) + 1
     shader_summary = {
         "files_with_shader_analysis": len(shader_records),
         "formats": dict(sorted(shader_formats.items())),
         "assessments": dict(sorted(shader_assessments.items())),
         "dxbc_shader_stages": dict(sorted(shader_stages.items())),
+        "rdef_resource_binding_count": shader_resource_bindings,
+        "rdef_resource_types": dict(sorted(shader_resource_types.items())),
         "bytecode_validated": False,
         "compatibility_established": False,
     }
