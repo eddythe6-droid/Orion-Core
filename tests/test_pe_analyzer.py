@@ -114,3 +114,34 @@ def test_reads_pe32_named_import(tmp_path):
     make_pe_with_imports(path, magic=0x10B)
     report = analyze_pe(path)
     assert report["imported_functions"][0]["name"] == "CreateFileW"
+
+
+def make_pe_with_delay_import(path, *, rva_based=True):
+    make_minimal_pe(path)
+    data = bytearray(path.read_bytes())
+    opt = 0x98
+    directory_offset = 112
+    struct.pack_into("<II", data, opt + directory_offset + 13 * 8, 0x1000, 64)
+    name_value = 0x1080 if rva_based else 0x140001080
+    struct.pack_into("<IIIIIIII", data, 0x200, 1 if rva_based else 0,
+                     name_value, 0, 0, 0, 0, 0, 0)
+    data[0x280:0x28D] = b"delaymod.dll\0"
+    path.write_bytes(data)
+
+
+def test_reads_rva_based_delay_import_module(tmp_path):
+    path = tmp_path / "delay-rva.exe"
+    make_pe_with_delay_import(path)
+    report = analyze_pe(path)
+    assert report["delay_import_modules"] == [{
+        "dll": "delaymod.dll", "attributes": 1, "rva_based": True
+    }]
+    assert report["delay_imports_truncated_or_unavailable"] is False
+
+
+def test_reads_va_based_delay_import_module(tmp_path):
+    path = tmp_path / "delay-va.exe"
+    make_pe_with_delay_import(path, rva_based=False)
+    report = analyze_pe(path)
+    assert report["delay_import_modules"][0]["dll"] == "delaymod.dll"
+    assert report["delay_import_modules"][0]["rva_based"] is False
