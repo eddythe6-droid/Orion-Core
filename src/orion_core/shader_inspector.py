@@ -121,6 +121,10 @@ def _inspect_rdef(payload: bytes) -> dict[str, Any]:
                 "type_descriptor_offset": type_offset,
                 "default_value_offset": default_value_offset,
                 "default_value_in_bounds": default_value_in_bounds,
+                "type_descriptor_offset_in_bounds": 28 <= type_offset < len(payload),
+                "declared_range_within_constant_buffer": (
+                    start_offset <= buffer_size and variable_size <= buffer_size - start_offset
+                ),
                 "start_texture": start_texture,
                 "texture_size": texture_size,
                 "start_sampler": start_sampler,
