@@ -30,3 +30,24 @@ Import modules reveal which platform subsystems need compatibility work. For exa
 - [Microsoft: GDK packaging overview](https://learn.microsoft.com/en-us/gaming/gdk/docs/features/common/packaging/overviews/packaging?view=gdk-2610)
 - [Microsoft: xbdepends sample](https://learn.microsoft.com/en-us/samples/microsoft/xbox-gdk-samples/xbdepends/)
 - [Microsoft: PE format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)
+
+
+## Expanded executable evidence (Orion-Core research build)
+
+The PE report now also records:
+
+- PE, COFF, optional-header and section-table file offsets.
+- Linker version, section/file alignment, image/header sizes, checksum field and DLL-characteristic flags.
+- All available data-directory entries with their address interpretation. The Security directory is explicitly represented as a **file offset**, not an RVA.
+- Section characteristics (code/data, read/write/execute), raw-range validity and overlap/out-of-file warnings.
+- Entry-point RVA and its file offset when it can be mapped safely.
+- Trailing bytes after mapped section/header data. This is only a boundary observation and may include a certificate table or other appended data.
+- Bounded \`WIN_CERTIFICATE\` record framing: offset, length, revision and certificate type.
+
+The certificate table parser does **not** decode PKCS#7 content, validate the Authenticode digest, build a trust chain, or identify a trusted publisher. A present certificate table is not proof of a valid signature or authentic Rockstar provenance. The report explicitly keeps all verification booleans false.
+
+Scarlett/GDK dependency evidence now includes both normal-import and delay-load DLL modules. Where bounded normal-import symbols are available, the report includes their names/ordinals for the hinted Xbox modules. Delay-load function thunks are still not decoded.
+
+The Game Inspector can optionally compute a full streaming SHA-256 for PE, XEX2 and XContent/STFS candidate files, including files larger than 64 MiB. This option is off by default and can take a long time for very large files. The separate general hashing option remains bounded to files no larger than 64 MiB. Neither option extracts or executes the file.
+
+These additions improve the inventory of evidence; they do not expand the parser into a full GDK loader, XVC package parser, binary validator, or compatibility emulator.
