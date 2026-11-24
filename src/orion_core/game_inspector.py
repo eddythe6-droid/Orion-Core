@@ -352,6 +352,56 @@ def inspect_game_path(
             dependencies["api_catalog_assessment"] = assess_imported_symbols(pe)
             dependencies["graphics_assessment"] = assess_graphics_dependencies(pe, records)
     is_archive = target.is_file() and zipfile.is_zipfile(target)
+    xbox_pe_records = [
+        item for item in records
+        if isinstance(item.get("scarlett_analysis"), dict)
+    ]
+    xbox_assessment_counts: dict[str, int] = {}
+    xbox_hint_counts: dict[str, int] = {}
+    xbox_executable_evidence: list[dict[str, Any]] = []
+    authenticode_table_count = 0
+    for item in xbox_pe_records:
+        scarlett = item.get("scarlett_analysis") or {}
+        assessment = str(scarlett.get("assessment", "unknown"))
+        xbox_assessment_counts[assessment] = xbox_assessment_counts.get(assessment, 0) + 1
+        for hint in scarlett.get("scarlett_gdk_import_hints", []):
+            module_name = str(hint.get("module", "unknown"))
+            xbox_hint_counts[module_name] = xbox_hint_counts.get(module_name, 0) + 1
+        pe = item.get("pe_analysis") or {}
+        authenticode = pe.get("authenticode_metadata") or {}
+        if authenticode.get("table_present"):
+            authenticode_table_count += 1
+        xbox_executable_evidence.append({
+            "path": item.get("path"),
+            "assessment": assessment,
+            "candidate_format": scarlett.get("candidate_format"),
+            "normal_import_module_count": scarlett.get("normal_import_module_count", 0),
+            "delay_load_module_count": scarlett.get("delay_load_module_count", 0),
+            "gdk_import_hints": scarlett.get("scarlett_gdk_import_hints", []),
+            "module_evidence": scarlett.get("module_evidence", []),
+            "authenticode_table_present": bool(authenticode.get("table_present")),
+            "authenticode_table_parse_status": authenticode.get("parse_status", "not_available"),
+            "authenticode_signature_verified": False,
+        })
+    xbox_series_summary = {
+        "pe_files_with_scarlett_assessment": len(xbox_pe_records),
+        "pe32_plus_x64_files": sum(
+            1 for item in xbox_pe_records
+            if (item.get("scarlett_analysis") or {}).get("architecture_matches_xbox_series_cpu")
+        ),
+        "xbox_series_gdk_candidate_hints": sum(
+            1 for item in xbox_pe_records
+            if (item.get("scarlett_analysis") or {}).get("assessment") == "xbox_series_gdk_candidate"
+        ),
+        "assessment_counts": dict(sorted(xbox_assessment_counts.items())),
+        "gdk_import_hint_module_counts": dict(sorted(xbox_hint_counts.items())),
+        "authenticode_certificate_table_present_count": authenticode_table_count,
+        "cryptographic_signature_verification_performed": False,
+        "publisher_identity_verified": False,
+        "executables": xbox_executable_evidence,
+        "platform_identity_verified": False,
+        "compatibility_established": False,
+    }
     return {
         "schema_version": INSPECTOR_SCHEMA_VERSION,
         "tool": "orion_game_inspector",
@@ -367,6 +417,7 @@ def inspect_game_path(
         "files_inspected": len(records),
         "type_counts": dict(sorted(counts.items())),
         "shader_summary": shader_summary,
+        "xbox_series_summary": xbox_series_summary,
         "files": records,
         "iso9660": iso_report,
         "xdvdfs": xdvdfs_report,
