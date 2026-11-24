@@ -26,8 +26,12 @@ class OrionDashboard:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title(f"Orion-Core | Research Laboratory {__version__}")
-        self.root.geometry("1648x929")
-        self.root.minsize(1280, 760)
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        window_width = max(1120, min(1648, screen_width - 40))
+        window_height = max(700, min(929, screen_height - 80))
+        self.root.geometry(f"{window_width}x{window_height}")
+        self.root.minsize(1120, 700)
         self.events: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.worker: threading.Thread | None = None
         self.report: dict[str, Any] | None = None
@@ -130,6 +134,12 @@ class OrionDashboard:
         style.configure("Accent.Horizontal.TProgressbar", troughcolor="#202b45",
                         background="#21e98b", bordercolor="#343b76",
                         lightcolor="#21e98b", darkcolor="#21e98b")
+        style.configure("Warning.Horizontal.TProgressbar", troughcolor="#202b45",
+                        background="#f3c56b", bordercolor="#5a4a43",
+                        lightcolor="#f3c56b", darkcolor="#f3c56b")
+        style.configure("Failed.Horizontal.TProgressbar", troughcolor="#202b45",
+                        background="#ff647c", bordercolor="#59334a",
+                        lightcolor="#ff647c", darkcolor="#ff647c")
 
     def _build_layout(self) -> None:
         """Build the Orion-Core dashboard to match the supplied visual concept."""
@@ -346,7 +356,7 @@ class OrionDashboard:
                             font=("Segoe UI", 13, "bold"))
             icon.pack(side="left", padx=(2, 7))
             self.stage_icons.append(icon)
-            tk.Label(row, text=name, width=36, anchor="w", bg="#10172c",
+            tk.Label(row, text=name, width=28, anchor="w", bg="#10172c",
                      fg="#dce4ff", font=("Segoe UI", 8)).pack(side="left")
             bar = ttk.Progressbar(row, maximum=100, value=0,
                                   style="Accent.Horizontal.TProgressbar")
@@ -626,15 +636,15 @@ class OrionDashboard:
         if not 0 <= index < len(self.stage_vars):
             return
         configs = {
-            "complete": ("✓", 100, "#21e98b", "Готово"),
-            "warning": ("!", 50, "#f3c56b", "Частично"),
-            "running": ("◌", 35, "#59b5ff", "Выполняется"),
-            "failed": ("×", 0, "#ff647c", "Ошибка"),
-            "pending": ("○", 0, "#687697", "Ожидает"),
+            "complete": ("✓", 100, "#21e98b", "Готово", "Accent.Horizontal.TProgressbar"),
+            "warning": ("!", 50, "#f3c56b", "Частично", "Warning.Horizontal.TProgressbar"),
+            "running": ("◌", 35, "#59b5ff", "Выполняется", "Horizontal.TProgressbar"),
+            "failed": ("×", 0, "#ff647c", "Ошибка", "Failed.Horizontal.TProgressbar"),
+            "pending": ("○", 0, "#687697", "Ожидает", "Horizontal.TProgressbar"),
         }
-        icon, value, color, label = configs.get(state, configs["pending"])
+        icon, value, color, label, style_name = configs.get(state, configs["pending"])
         self.stage_icons[index].configure(text=icon, fg=color)
-        self.stage_bars[index].configure(value=value)
+        self.stage_bars[index].configure(value=value, style=style_name)
         self.stage_vars[index].set(detail or label)
         self.stage_details[index].configure(fg=color)
 
@@ -881,8 +891,8 @@ class OrionDashboard:
             )
         else:
             self.metric_vars["vram"].set("Бюджет недоступен")
-        self.metric_vars["ray"].set(str(adapter.get("ray_tracing_tier", "Нет данных")))
-        self.metric_vars["mesh"].set(str(adapter.get("mesh_shader_tier", "Нет данных")))
+        self.metric_vars["ray"].set(str(adapter.get("ray_tracing_tier") or "Нет данных"))
+        self.metric_vars["mesh"].set(str(adapter.get("mesh_shader_tier") or "Нет данных"))
         tests = (
             adapter.get("direct_queue_fence_test"),
             adapter.get("resource_copy_smoke_test"),
