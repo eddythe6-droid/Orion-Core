@@ -139,6 +139,7 @@ See [RESEARCH_CAPABILITY_CATALOG](docs/RESEARCH_CAPABILITY_CATALOG.md).
 - [Game Inspector](docs/GAME_INSPECTOR.md)
 - [XDVDFS / XISO](docs/XDVDFS.md)
 - [Xbox 360 XEX2 metadata](docs/XEX2.md)\n- [Xbox Series / Scarlett PE analysis](docs/SCARLETT_PE.md)
+- [PE dependency triage](docs/PE_DEPENDENCY_TRIAGE.md)
 - [Native D3D12 probe](docs/NATIVE_D3D12_PROBE.md)
 - [Graphics harness](docs/GRAPHICS_HARNESS.md)
 - [Graphics research deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md)
