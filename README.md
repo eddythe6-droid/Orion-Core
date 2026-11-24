@@ -166,3 +166,9 @@ See [RESEARCH_CAPABILITY_CATALOG](docs/RESEARCH_CAPABILITY_CATALOG.md).
 Orion-Core is designed for local, read-only analysis. It does not change registry settings, install drivers, run discovered executables, decrypt protected payloads, bypass access controls, or alter signatures. System diagnostics avoid collecting device serial numbers, MAC addresses, usernames, hostnames or personal files.
 
 Only inspect game materials you are legally entitled to access.
+
+## Windows standalone EXE
+
+A standalone Windows x64 desktop build is produced by the **Windows EXE build** GitHub Actions workflow on pushes to `main` and by manual workflow dispatch. Open the repository's Actions tab, select the latest successful **Windows EXE build** run, and download the `Orion-Core-Windows-x64` artifact. Extract the ZIP and launch `Orion-Core.exe`.
+
+The executable is a one-file PyInstaller build and does not require a separate Python installation. Windows may show its normal SmartScreen warning for an unsigned, self-built executable. The native Direct3D 12 probe is a separate optional C++ program and is not bundled into this Python GUI executable.
