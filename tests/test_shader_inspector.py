@@ -95,7 +95,7 @@ def test_rejects_dxbc_container_with_duplicate_offsets():
 def test_parses_common_rdef_resource_bindings():
     header = struct.pack("<7I", 0, 0, 1, 28, 0x50050, 0, 0)
     resource = struct.pack("<8I", 60, 2, 0, 4, 0, 3, 1, 0)
-    payload = header + resource + b"albedoTexture\\x00"
+    payload = header + resource + b"albedoTexture\x00"
     report = inspect_shader_bytes(_container([("RDEF", payload)]))
     reflection = report["chunks"][0]["resource_reflection"]
     assert reflection["assessment"] == "common_rdef_resource_table_parsed"
