@@ -29,6 +29,11 @@ jobs:
           python -m pip install .
           python -m pip install pyinstaller
 
+      - name: Smoke test desktop GUI initialization
+        shell: pwsh
+        run: |
+          python -c "import tkinter as tk; from orion_core.gui import OrionDashboard; root=tk.Tk(); root.withdraw(); app=OrionDashboard(root); root.update_idletasks(); root.destroy()"
+
       - name: Build standalone GUI executable
         run: >-
           python -m PyInstaller
