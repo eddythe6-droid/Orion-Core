@@ -35,7 +35,7 @@ _RDEF_DIMENSIONS = {
 def _read_rdef_string(payload: bytes, offset: int) -> str | None:
     if offset < 0 or offset >= len(payload):
         return None
-    end = payload.find(b"\\x00", offset, min(len(payload), offset + 4096))
+    end = payload.find(b"\x00", offset, min(len(payload), offset + 4096))
     if end < 0:
         return None
     return payload[offset:end].decode("utf-8", errors="replace")
