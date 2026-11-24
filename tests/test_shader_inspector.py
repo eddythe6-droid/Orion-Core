@@ -50,12 +50,12 @@ def test_rejects_bad_chunk_offset_and_non_dxbc_data():
 def test_inspects_spirv_header_without_parsing_instruction_stream():
     from orion_core.shader_inspector import inspect_spirv_bytes
 
-    data = struct.pack("<5I", 0x07230203, 0x00010600, 7, 128, 0) + b"\x00\x00\x00\x00"
+    data = struct.pack("<5I", 0x07230203, 0x00010600, 7, 128, 0)
     report = inspect_spirv_bytes(data)
     assert report["format"] == "spirv"
     assert report["version"] == "1.6"
     assert report["id_bound"] == 128
-    assert report["instruction_stream_parsed"] is False
+    assert report["instruction_stream_parsed"] is True\n    assert report["instruction_count"] == 0
     assert report["compatibility_established"] is False
 
 
@@ -155,7 +155,7 @@ def test_spirv_big_endian_entry_point_string_is_preserved():
     from orion_core.shader_inspector import inspect_spirv_bytes
 
     # Big-endian word encoding; OpEntryPoint with a one-word null-terminated name.
-    words = [0x07230203, 0x00010000, 0, 32, 0, (4 << 16) | 15, 0, 3, 0x6D61696E]
+    words = [0x07230203, 0x00010000, 0, 32, 0, (5 << 16) | 15, 0, 3, 0x6D61696E, 0]
     data = struct.pack(">" + "I" * len(words), *words)
     report = inspect_spirv_bytes(data)
     assert report["endianness"] == "big"
