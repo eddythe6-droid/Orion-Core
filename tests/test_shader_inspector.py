@@ -114,8 +114,8 @@ def test_rdef_out_of_bounds_resource_table_is_reported_not_read():
 
 
 def _spirv_string_words(value):
-    raw = value.encode("utf-8") + b"\\x00"
-    raw += b"\\x00" * ((-len(raw)) % 4)
+    raw = value.encode("utf-8") + b"\x00"
+    raw += b"\x00" * ((-len(raw)) % 4)
     return list(struct.unpack("<" + "I" * (len(raw) // 4), raw))
 
 
