@@ -146,3 +146,31 @@ def test_reads_va_based_delay_import_module(tmp_path):
     report = analyze_pe(path)
     assert report["delay_import_modules"][0]["dll"] == "delaymod.dll"
     assert report["delay_import_modules"][0]["rva_based"] is False
+
+
+def make_pe_with_exports(path):
+    make_minimal_pe(path)
+    data = bytearray(path.read_bytes())
+    opt = 0x98
+    struct.pack_into("<II", data, opt + 112, 0x1000, 0x100)
+    struct.pack_into("<IIHHIIIIIII", data, 0x200,
+                     0, 123, 0, 0, 0, 1, 2, 1,
+                     0x1040, 0x1048, 0x104C)
+    struct.pack_into("<II", data, 0x240, 0x1100, 0x1080)
+    struct.pack_into("<I", data, 0x248, 0x1060)
+    struct.pack_into("<H", data, 0x24C, 0)
+    data[0x260:0x267] = b"DoWork\\0"
+    data[0x280:0x28C] = b"OTHER.Func\\0"
+    path.write_bytes(data)
+
+
+def test_reads_named_and_forwarded_exports(tmp_path):
+    path = tmp_path / "exports.dll"
+    make_pe_with_exports(path)
+    report = analyze_pe(path)
+    assert report["export_directory_valid"] is True
+    assert report["exported_functions"][0]["ordinal"] == 1
+    assert report["exported_functions"][0]["names"] == ["DoWork"]
+    assert report["exported_functions"][0]["rva"] == 0x1100
+    assert report["exported_functions"][1]["is_forwarder"] is True
+    assert report["exported_functions"][1]["forwarder"] == "OTHER.Func"
