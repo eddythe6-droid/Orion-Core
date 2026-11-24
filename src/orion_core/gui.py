@@ -185,8 +185,14 @@ class OrionDashboard:
 
         brand = tk.Frame(header, bg="#090e21")
         brand.pack(side="left", padx=(18, 10), fill="y")
-        tk.Label(brand, text="✦", bg="#090e21", fg="#8b4dff",
-                 font=("Segoe UI Symbol", 34, "bold")).pack(side="left", padx=(0, 12))
+        logo = tk.Canvas(brand, width=55, height=55, bg="#090e21",
+                         highlightthickness=0, bd=0)
+        logo.pack(side="left", padx=(0, 12), pady=9)
+        logo.create_polygon(
+            27, 1, 33, 20, 53, 27, 33, 33, 27, 54, 21, 33, 1, 27, 21, 20,
+            fill="#7138f6", outline="#b59aff", width=1
+        )
+        logo.create_line(27, 4, 27, 50, fill="#d0beff", width=1)
         title_block = tk.Frame(brand, bg="#090e21")
         title_block.pack(side="left", pady=10)
         tk.Label(title_block, text="Orion-Core", bg="#090e21", fg="#f5f6ff",
@@ -292,7 +298,8 @@ class OrionDashboard:
             tk.Label(line, text=label, width=11, anchor="w", bg="#10172c",
                      fg="#8997bc", font=("Segoe UI", 9)).pack(side="left")
             tk.Label(line, textvariable=variable, anchor="w", bg="#10172c",
-                     fg="#f0f3ff", font=("Segoe UI Semibold", 9)).pack(side="left", fill="x", expand=True)
+                     fg="#f0f3ff", font=("Segoe UI Semibold", 9),
+                     wraplength=245, justify="left").pack(side="left", fill="x", expand=True)
 
         gpu_panel, gpu_body = self._panel(cards, "Видеокарта", "▦")
         gpu_panel.grid(row=0, column=1, sticky="nsew", padx=3)
@@ -410,9 +417,23 @@ class OrionDashboard:
         self.probe_canvas.create_line(130, 0, 130, 110, fill="#101c34")
         self.probe_canvas.create_line(195, 0, 195, 110, fill="#101c34")
         self.probe_canvas.create_line(260, 0, 260, 110, fill="#101c34")
-        self.probe_canvas.create_oval(150, 25, 190, 65, outline="#5a4aa8", width=2)
-        self.probe_canvas.create_text(170, 45, text="GPU", fill="#a89bff",
-                                     font=("Segoe UI Semibold", 10))
+        # Decorative shader color-pattern preview; it is not a live GPU result.
+        self.probe_canvas.create_polygon(
+            170, 7, 270, 98, 70, 98,
+            fill="#18294f", outline="#639cff", width=2
+        )
+        self.probe_canvas.create_polygon(
+            170, 7, 170, 98, 70, 98, fill="#173f9b", outline=""
+        )
+        self.probe_canvas.create_polygon(
+            170, 7, 270, 98, 170, 98, fill="#126b48", outline=""
+        )
+        self.probe_canvas.create_polygon(
+            70, 98, 270, 98, 170, 98, fill="#542752", outline=""
+        )
+        self.probe_canvas.create_line(170, 7, 170, 98, fill="#8ab8ff", width=1)
+        self.probe_canvas.create_text(170, 84, text="PREVIEW", fill="#ffffff",
+                                     font=("Segoe UI Semibold", 7))
         self.probe_state_var = tk.StringVar(value="Нативный тест не запускался")
         tk.Label(graph_body, textvariable=self.probe_state_var, bg="#10172c",
                  fg="#aab8da", font=("Segoe UI", 8), wraplength=230,
