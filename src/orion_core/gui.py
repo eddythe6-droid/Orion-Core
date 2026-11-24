@@ -1072,15 +1072,21 @@ class OrionDashboard:
                 elif kind == "game_report":
                     self.game_inspection_report = payload
                     self._render_game_report(payload)
+                elif kind == "game_error":
+                    self._set_text(self.media_metadata_text, "АНАЛИЗ НЕ ЗАВЕРШЁН\n\n" + str(payload))
+                    self.media_stat_vars["format"].set("Ошибка анализа")
+                    self._set_stage(0, "failed", "Ошибка источника")
+                    self._log("ERROR", "Game Inspector не смог завершить анализ выбранного источника.")
                 elif kind == "game_done":
                     self.game_button.configure(state="normal")
+                    self.inspect_button.configure(state="normal")
                     self.game_progress.stop()
                     self.status.set("Анализ игры завершён" if payload else "Анализ игры завершился с ошибкой")
+                    self.header_status.set("MEDIA REPORT READY" if payload else "MEDIA ANALYSIS ERROR")
                     if payload:
-                        self.footer_state_var.set("Game Inspector сформировал отчёт; файлы не запускались")
+                        self.footer_state_var.set("Отчёт Game Inspector готов; файлы не запускались")
                     else:
-                        self._set_stage(3, "warning", "Анализ не завершён")
-                        self._set_stage(4, "warning", "Анализ не завершён")
+                        self.footer_state_var.set("Анализ завершился с ошибкой; подробности в консоли")
                 elif kind == "gpu_report":
                     self.gpu_report = payload
                     adapters = payload.get("adapters", [])
@@ -1403,6 +1409,36 @@ class OrionDashboard:
 
     def _render_game_report(self, report: dict[str, Any]) -> None:
         self._populate_dependency_tree(report)
+        self._render_media_summary(report)
+        self._set_stage(0, "complete", str(report.get("source_kind", "Источник разобран")))
+        files_inspected = report.get("files_inspected", 0)
+        self._set_stage(
+            1, "complete" if files_inspected else "warning",
+            f"Записей: {files_inspected}" if files_inspected else "Записи не найдены"
+        )
+        files = report.get("files", [])
+        executable_records = [
+            item for item in files
+            if item.get("pe_analysis") is not None
+            or item.get("xex_metadata") is not None
+            or item.get("stfs_metadata") is not None
+        ]
+        self._set_stage(
+            2, "complete" if executable_records else "warning",
+            f"Кандидатов: {len(executable_records)}" if executable_records else "Не обнаружены"
+        )
+        shader_count = report.get("shader_summary", {}).get("files_with_shader_analysis", 0)
+        self._set_stage(
+            3, "complete" if shader_count else "warning",
+            f"Shader metadata: {shader_count}" if shader_count else "Не обнаружены"
+        )
+        dependency_count = sum(
+            1 for item in files if item.get("dependency_analysis") is not None
+        )
+        self._set_stage(
+            4, "complete" if dependency_count else "warning",
+            f"PE dependency reports: {dependency_count}" if dependency_count else "PE-кандидаты не найдены"
+        )
         lines = [
             f"Источник: {report.get('source_name', '—')}",
             f"Тип: {report.get('source_kind', '—')}",
@@ -1461,22 +1497,8 @@ class OrionDashboard:
         lines.extend(["", "Ограничения: анализ только для чтения; исполняемые файлы не запускаются.",
                       "Локальное совпадение импорта с экспортом не доказывает ABI- или runtime-совместимость."])
         self._set_detail("Анализ игры", "\n".join(lines))
-        type_counts = report.get("type_counts", {})
-        shader_count = sum(
-            count for kind, count in type_counts.items()
-            if any(token in str(kind).casefold() for token in ("shader", "dxbc", "dxil", "spirv"))
-        )
-        if shader_count:
-            self._set_stage(3, "complete", f"Обнаружены shader-ресурсы: {shader_count}")
-        else:
-            self._set_stage(3, "warning", "Шейдерные файлы не обнаружены в выбранном наборе")
-        files_inspected = report.get("files_inspected", 0)
-        if files_inspected:
-            self._set_stage(4, "complete", f"Проверено файловых записей: {files_inspected}")
-        else:
-            self._set_stage(4, "warning", "Инвентаризация не вернула файловых записей")
-        self._show_details("Анализ игры", update_nav=True)
-        self._log("SUCCESS", "Отчёт Game Inspector отображён в интерфейсе.")
+        self._log("SUCCESS", "Отчёт Game Inspector отображён в рабочей области исследования.")
+
 
     def save_history(self) -> None:
         """Persist the most recent completed diagnostic or native GPU report."""
@@ -1532,8 +1554,7 @@ class OrionDashboard:
         self.scan_button.configure(state="disabled")
         self.status.set("Выполняется нативный D3D12-тест…")
         self.header_status.set("D3D12 PROBE")
-        self._set_stage(2, "running", "D3D12 device")
-        self._set_stage(5, "running", "GPU операции")
+        self._set_stage(5, "running", "D3D12 probe")
         self._log("WARNING", "D3D12 probe выполняет реальные read-only GPU-команды; сохраните работу перед запуском.")
         self._log("INFO", f"Запуск выбранного пользователем файла: {path}")
         self.worker = threading.Thread(target=self._gpu_probe_worker, args=(path,), daemon=True)
