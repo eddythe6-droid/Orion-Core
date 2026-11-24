@@ -51,3 +51,31 @@ def test_reports_missing_ambiguous_and_architecture_mismatch():
         "missing_module", "ambiguous_module", "architecture_mismatch"
     ]
     assert result["execution_performed"] is False
+
+def test_indexes_windows_style_paths_and_reports_delay_load_modules():
+    index = build_local_export_index([
+        {"path": r"bin\\engine.dll", "pe_analysis": {
+            "valid_pe_structure": True, "architecture": "x86_64",
+            "exported_functions": [{"ordinal": 1, "names": ["Run"], "is_forwarder": False}],
+        }},
+    ])
+    assert "engine.dll" in index
+    result = resolve_imports_against_local_files({
+        "architecture": "x86_64",
+        "import_modules": [],
+        "delay_import_modules": [{"dll": "engine.dll"}],
+    }, index)
+    assert result["modules"][0]["import_kind"] == "delay_load"
+    assert result["modules"][0]["status"] == "candidate_file_found"
+
+
+def test_architecture_mismatch_has_dedicated_counter():
+    index = build_local_export_index([
+        {"path": "lib.dll", "pe_analysis": {"valid_pe_structure": True,
+         "architecture": "x86", "exported_functions": []}},
+    ])
+    result = resolve_imports_against_local_files({
+        "architecture": "x86_64",
+        "import_modules": [{"dll": "lib.dll", "functions": []}],
+    }, index)
+    assert result["counts"]["architecture_mismatch"] == 1
