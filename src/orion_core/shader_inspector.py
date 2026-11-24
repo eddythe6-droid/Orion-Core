@@ -1,0 +1,136 @@
+"""Bounded, read-only inspection of DXBC/DXIL shader container metadata."""
+from __future__ import annotations
+
+import struct
+from pathlib import Path
+from typing import Any
+
+MAX_SHADER_BYTES = 16 * 1024 * 1024
+MAX_CHUNKS = 4096
+_STAGE_NAMES = {
+    0: "pixel", 1: "vertex", 2: "geometry", 3: "hull",
+    4: "domain", 5: "compute", 6: "reserved_6", 7: "reserved_7",
+    8: "reserved_8", 9: "reserved_9", 10: "reserved_10",
+}
+
+
+class ShaderFormatError(ValueError):
+    """Raised when a shader container is malformed or exceeds parser bounds."""
+
+
+def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
+    """Read container/chunk metadata; never validates signatures or executes bytecode."""
+    if len(data) < 4 or data[:4] != b"DXBC":
+        raise ShaderFormatError("missing DXBC container signature")
+    if len(data) < 32:
+        raise ShaderFormatError("DXBC header is truncated")
+    if len(data) > MAX_SHADER_BYTES:
+        raise ShaderFormatError(f"shader exceeds parser limit ({MAX_SHADER_BYTES} bytes)")
+    version, declared_size, chunk_count = struct.unpack_from("<III", data, 20)
+    if declared_size < 32 or declared_size > len(data):
+        raise ShaderFormatError("declared DXBC container size is outside the file")
+    if chunk_count > MAX_CHUNKS:
+        raise ShaderFormatError(f"chunk count exceeds parser limit ({MAX_CHUNKS})")
+    table_end = 32 + chunk_count * 4
+    if table_end > declared_size:
+        raise ShaderFormatError("DXBC chunk-offset table is truncated")
+
+    chunks = []
+    stages = []
+    dxil_programs = []
+    seen_offsets = set()
+    for index in range(chunk_count):
+        offset = struct.unpack_from("<I", data, 32 + index * 4)[0]
+        if offset in seen_offsets:
+            raise ShaderFormatError("duplicate DXBC chunk offset")
+        seen_offsets.add(offset)
+        if offset < table_end or offset + 8 > declared_size:
+            raise ShaderFormatError("DXBC chunk header points outside container")
+        fourcc_bytes = data[offset:offset + 4]
+        try:
+            fourcc = fourcc_bytes.decode("ascii")
+        except UnicodeDecodeError:
+            fourcc = fourcc_bytes.decode("ascii", errors="replace")
+        chunk_size = struct.unpack_from("<I", data, offset + 4)[0]
+        payload_start = offset + 8
+        payload_end = payload_start + chunk_size
+        if payload_end > declared_size:
+            raise ShaderFormatError("DXBC chunk payload points outside container")
+        payload = data[payload_start:payload_end]
+        chunk_info: dict[str, Any] = {"fourcc": fourcc, "size_bytes": chunk_size}
+        if fourcc in ("SHDR", "SHEX"):
+            if len(payload) >= 4:
+                token = struct.unpack_from("<I", payload, 0)[0]
+                stage_id = (token >> 16) & 0xFFFF
+                stage = _STAGE_NAMES.get(stage_id, "unknown")
+                stage_info = {
+                    "stage": stage,
+                    "stage_id": stage_id,
+                    "shader_model_major": (token >> 4) & 0xF,
+                    "shader_model_minor": token & 0xF,
+                    "source_chunk": fourcc,
+                }
+                chunk_info["shader_program"] = stage_info
+                stages.append(stage_info)
+            else:
+                chunk_info["shader_program"] = {"assessment": "truncated_program_header"}
+        elif fourcc == "DXIL":
+            program: dict[str, Any] = {"container_chunk": "DXIL"}
+            if len(payload) >= 24 and payload[8:12] == b"DXIL":
+                program.update({
+                    "program_version_token": struct.unpack_from("<I", payload, 0)[0],
+                    "program_size_dwords": struct.unpack_from("<I", payload, 4)[0],
+                    "dxil_version": struct.unpack_from("<I", payload, 12)[0],
+                    "bitcode_offset": struct.unpack_from("<I", payload, 16)[0],
+                    "bitcode_size": struct.unpack_from("<I", payload, 20)[0],
+                    "header_assessment": "recognized_dxil_program_header",
+                })
+                bitcode_start = 8 + program["bitcode_offset"]
+                bitcode_end = bitcode_start + program["bitcode_size"]
+                program["bitcode_range_within_chunk"] = (
+                    bitcode_start >= 0 and bitcode_end >= bitcode_start and bitcode_end <= len(payload)
+                )
+            else:
+                program["header_assessment"] = "dxil_chunk_without_recognized_program_header"
+            chunk_info["dxil_program"] = program
+            dxil_programs.append(program)
+        chunks.append(chunk_info)
+
+    return {
+        "format": "dxbc_container",
+        "container_version": version,
+        "declared_size_bytes": declared_size,
+        "trailing_bytes": len(data) - declared_size,
+        "chunk_count": chunk_count,
+        "chunks": chunks,
+        "shader_programs": stages,
+        "dxil_programs": dxil_programs,
+        "metadata_scope": "container_chunk_and_shader_model_headers_only",
+        "checksum_verified": False,
+        "bytecode_validated": False,
+        "execution_performed": False,
+        "compatibility_established": False,
+        "limitations": [
+            "The DXBC hash/checksum is not verified.",
+            "Shader bytecode instructions, reflection bindings, signatures, root signatures, and pipeline state are not decoded.",
+            "DXIL bitcode is not parsed or validated.",
+            "A structurally recognized container does not prove driver or Xbox/Windows compatibility.",
+        ],
+    }
+
+
+def inspect_shader_file(path: str | Path) -> dict[str, Any]:
+    """Inspect a bounded on-disk shader file; no archive extraction is performed."""
+    target = Path(path)
+    size = target.stat().st_size
+    if size > MAX_SHADER_BYTES:
+        return {
+            "assessment": "size_limit_exceeded",
+            "size_bytes": size,
+            "parser_limit_bytes": MAX_SHADER_BYTES,
+            "bytecode_validated": False,
+            "execution_performed": False,
+        }
+    with target.open("rb") as stream:
+        data = stream.read(MAX_SHADER_BYTES + 1)
+    return inspect_shader_bytes(data)
