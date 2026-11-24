@@ -71,16 +71,16 @@ def make_pe_with_imports(path, *, magic=0x20B, ordinal=False, missing_original=F
     name_rva = 0x1040
     struct.pack_into("<II", data, opt + directory_offset + 8, 0x1000, 40)
     struct.pack_into("<IIIII", data, 0x200, 0 if missing_original else thunk_rva, 0, 0, name_rva, thunk_rva)
-    data[0x240:0x24C] = b"kernel32.dll\\0"
+    data[0x240:0x24C] = b"kernel32.dll\0"
     if ordinal:
         value = (0x8000000000000000 if thunk_size == 8 else 0x80000000) | 17
     else:
         value = 0x1060
     data[0x250:0x250 + thunk_size] = value.to_bytes(thunk_size, "little")
-    data[0x250 + thunk_size:0x250 + 2 * thunk_size] = b"\\0" * thunk_size
+    data[0x250 + thunk_size:0x250 + 2 * thunk_size] = b"\0" * thunk_size
     if not ordinal:
         struct.pack_into("<H", data, 0x260, 7)
-        data[0x262:0x26D] = b"CreateFileW\\0"
+        data[0x262:0x26D] = b"CreateFileW\0"
     path.write_bytes(data)
 
 
