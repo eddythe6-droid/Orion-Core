@@ -9,8 +9,10 @@ MAX_SHADER_BYTES = 16 * 1024 * 1024
 MAX_CHUNKS = 4096
 _STAGE_NAMES = {
     0: "pixel", 1: "vertex", 2: "geometry", 3: "hull",
-    4: "domain", 5: "compute", 6: "reserved_6", 7: "reserved_7",
-    8: "reserved_8", 9: "reserved_9", 10: "reserved_10",
+    4: "domain", 5: "compute", 6: "library",
+    7: "ray_generation", 8: "intersection", 9: "any_hit",
+    10: "closest_hit", 11: "miss", 12: "callable",
+    13: "mesh", 14: "amplification",
 }
 
 
