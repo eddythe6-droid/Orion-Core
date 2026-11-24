@@ -160,3 +160,30 @@ def test_game_inspector_summarizes_spirv_metadata(tmp_path):
     summary = report["shader_summary"]
     assert summary["spirv_capability_occurrences"] == {"1": 1}
     assert summary["spirv_entry_point_count"] == 1
+
+
+
+def test_game_inspector_exposes_xcontent_package_metadata(tmp_path):
+    package = tmp_path / "games_on_demand.con"
+    data = bytearray(0x1720)
+    data[:4] = b"CON "
+    struct.pack_into(">I", data, 0x340, 0x971A)
+    struct.pack_into(">I", data, 0x344, 0x7000)
+    struct.pack_into(">I", data, 0x348, 2)
+    struct.pack_into(">Q", data, 0x34C, 4096)
+    struct.pack_into(">I", data, 0x354, 0x11223344)
+    struct.pack_into(">I", data, 0x360, 0x4D530001)
+    data[0x364:0x368] = bytes((2, 0, 1, 1))
+    struct.pack_into(">I", data, 0x39D, 0)
+    struct.pack_into(">Q", data, 0x3A1, 0)
+    struct.pack_into(">I", data, 0x3A9, 0)
+    data[0x411:0x419] = "Test".encode("utf-16-be")
+    package.write_bytes(data)
+
+    report = inspect_game_path(package)
+    assert report["source_kind"] == "xcontent_package"
+    assert report["files_inspected"] == 1
+    assert report["stfs"]["container_format"] == "STFS"
+    assert report["stfs"]["title_id"] == 0x4D530001
+    assert report["files"][0]["stfs_metadata"]["signature_type"] == "CON"
+    assert report["extraction_performed"] is False
