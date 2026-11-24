@@ -638,7 +638,7 @@ class OrionDashboard:
         self.stage_vars[index].set(detail or label)
         self.stage_details[index].configure(fg=color)
 
-        def _set_detail(self, name: str, value: str) -> None:
+    def _set_detail(self, name: str, value: str) -> None:
         widget = self.detail_views[name]
         widget.configure(state="normal")
         widget.delete("1.0", "end")
@@ -1069,7 +1069,7 @@ class OrionDashboard:
         lines.extend(["", "Ограничения: анализ только для чтения; исполняемые файлы не запускаются.",
                       "Локальное совпадение импорта с экспортом не доказывает ABI- или runtime-совместимость."])
         self._set_detail("Анализ игры", "\n".join(lines))
-        self.detail_notebook.select(list(self.detail_views).index("Анализ игры"))
+        self._show_details("Анализ игры", update_nav=True)
         self._log("SUCCESS", "Отчёт Game Inspector отображён в интерфейсе.")
 
     def save_history(self) -> None:
