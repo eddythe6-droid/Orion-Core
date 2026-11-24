@@ -145,7 +145,7 @@ See [RESEARCH_CAPABILITY_CATALOG](docs/RESEARCH_CAPABILITY_CATALOG.md).
 - [PE export analysis](docs/PE_EXPORT_ANALYSIS.md)
 - [PE import resolution](docs/PE_IMPORT_RESOLUTION.md)
 - [Win32 API symbol catalogue](docs/API_SYMBOL_CATALOG.md)
-- [Graphics dependency analysis](docs/GRAPHICS_DEPENDENCIES.md)\n- [DXBC/DXIL shader-container inspection](docs/SHADER_INSPECTION.md)
+- [Graphics dependency analysis](docs/GRAPHICS_DEPENDENCIES.md)\n- [DXBC/DXIL/SPIR-V shader inspection](docs/SHADER_INSPECTION.md)
 - [Native D3D12 probe](docs/NATIVE_D3D12_PROBE.md)
 - [Graphics harness](docs/GRAPHICS_HARNESS.md)
 - [Graphics research deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md)
