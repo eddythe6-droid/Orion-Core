@@ -85,6 +85,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Include RDEF resource counts and resource-type summaries in Game Inspector JSON\n- [x] Extract basic DXIL program-header fields without validating bitcode
 - [x] Add searchable dependency table, selection details, separate file/folder pickers and analysis progress indicator
 - [x] Add guided Game Inspector workspace with file/folder picker, asynchronous analysis, PE dependency/export summary and JSON export
+- [x] Add console copy action, copy-selection/full-log context menu, and Ctrl+A/Ctrl+C shortcuts
 - [ ] Package a Windows desktop build and validate on physical hardware
 
 ## Game-file research
@@ -93,6 +94,12 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Optional bounded SHA-256 hashing and JSON inspection reports
 - [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser
 - [x] Parse bounded PE export tables, names, ordinals and forwarder strings\n- [x] Add separate Xbox Series / Scarlett PE32+ x64 candidate assessment with conservative GDK import-name hints (not authenticity verification)
+- [x] Add PE data-directory and Security-directory metadata with file-offset/RVA distinction
+- [x] Report PE section permissions/flags, raw-range bounds/overlaps, entry-point file mapping and trailing-data boundaries
+- [x] Inventory bounded WIN_CERTIFICATE framing without claiming Authenticode cryptographic validation
+- [x] Report Xbox Series normal-import and delay-load GDK dependency evidence separately
+- [x] Add opt-in streaming SHA-256 for PE/XEX2/XContent files larger than 64 MiB
+- [ ] Add XVC package manifest/container inventory using independently documented metadata only
 - [x] Research and parse public XContent/STFS metadata headers (`CON `, `LIVE`, `PIRS`) without signature/hash verification
 - [x] Identify common GOD/SVOD sibling header + `.data/DataNNNN` layout by metadata only
 - [x] Parse documented public XEX2 wrapper metadata (fixed header, optional-header directory, entry point/base and execution info)
