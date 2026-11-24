@@ -82,6 +82,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Recognize bounded SPIR-V module headers and summarize shader formats/stages in JSON reports
 - [x] Walk SPIR-V instruction framing with word-count bounds and inventory opcode counts, capabilities, extensions, and entry points (not semantic validation)
 - [x] Parse common DXBC RDEF resource-binding records with strict table and string bounds
+- [x] Recognize DXIL library, ray-tracing, mesh, and amplification shader-stage identifiers
 - [x] Parse bounded DXBC RDEF constant-buffer and variable records; report declared layouts and offset/range checks without decoding type descriptors
 - [x] Include RDEF resource counts and resource-type summaries in Game Inspector JSON\n- [x] Extract basic DXIL program-header fields without validating bitcode
 - [x] Add searchable dependency table, selection details, separate file/folder pickers and analysis progress indicator
