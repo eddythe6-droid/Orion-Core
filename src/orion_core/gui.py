@@ -581,8 +581,14 @@ class OrionDashboard:
                  fg="#aebbe0", font=("Segoe UI", 9)).pack(side="left")
         tk.Label(footer, textvariable=self.footer_state_var, bg="#090e21",
                  fg="#7f8fb4", font=("Segoe UI", 8)).pack(side="left", padx=(16, 0))
+        ttk.Button(footer, text="История",
+                   command=lambda: self._show_details("История", update_nav=False)).pack(
+                       side="right", padx=4, pady=7
+                   )
+        ttk.Button(footer, text="Сохранить снимок",
+                   command=self.save_history).pack(side="right", padx=4, pady=7)
         ttk.Button(footer, text="Экспорт отчёта",
-                   command=self.export_report).pack(side="right", padx=10, pady=7)
+                   command=self.export_report).pack(side="right", padx=4, pady=7)
         self.scan_button = ttk.Button(
             footer, text="▶  Запустить проверку",
             style="Accent.TButton", command=self.start_scan
@@ -672,6 +678,21 @@ class OrionDashboard:
         self.scan_button.configure(state="disabled")
         self._scan_success = False
         self.report = None
+        self.gpu_report = None
+        self.game_inspection_report = None
+        for index in range(len(self.stage_vars)):
+            self._set_stage(index, "pending")
+        self.dx12_summary_var.set("Не проверено")
+        self.dx12_detail_var.set("D3D12 probe не запускался")
+        self.gpu_api_var.set("API: не проверено")
+        self.verdict_var.set("Совместимость не определена")
+        self.verdict_note_var.set("Ожидается сбор данных системы")
+        self.probe_state_var.set("Нативный тест не запускался")
+        self.metric_vars["gpu_perf"].set("Не измерялась")
+        self.metric_vars["vram"].set("Нет данных")
+        self.metric_vars["feature"].set("Не проверено")
+        self.metric_vars["ray"].set("Нет данных")
+        self.metric_vars["mesh"].set("Нет данных")
         self.status.set("Выполняется диагностика…")
         self.header_status.set("СБОР ДАННЫХ")
         self.footer_state_var.set("Выполняется системная инвентаризация")
@@ -780,6 +801,10 @@ class OrionDashboard:
                     self.gpu_button.configure(state="normal")
                     self.status.set("D3D12-тест завершён" if payload else "D3D12-тест завершился с ошибкой")
                     self.header_status.set("D3D12 ГОТОВ" if payload else "D3D12 ОШИБКА")
+                    if not payload:
+                        self._set_stage(2, "failed", "Не удалось завершить D3D12 probe")
+                        self._set_stage(5, "warning", "GPU операции не подтверждены")
+                        self.footer_state_var.set("D3D12 probe завершился с ошибкой; подробности в консоли")
         except queue.Empty:
             pass
         self.root.after(100, self._drain_events)
