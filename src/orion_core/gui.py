@@ -26,8 +26,8 @@ class OrionDashboard:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title(f"Orion-Core | Research Laboratory {__version__}")
-        self.root.geometry("1180x780")
-        self.root.minsize(900, 620)
+        self.root.geometry("1648x929")
+        self.root.minsize(1280, 760)
         self.events: queue.Queue[tuple[str, Any]] = queue.Queue()
         self.worker: threading.Thread | None = None
         self.report: dict[str, Any] | None = None
@@ -127,9 +127,13 @@ class OrionDashboard:
         style.configure("Horizontal.TProgressbar", troughcolor="#0e1929",
                         background=accent, bordercolor=border, lightcolor=accent,
                         darkcolor=accent)
+        style.configure("Accent.Horizontal.TProgressbar", troughcolor="#202b45",
+                        background="#21e98b", bordercolor="#343b76",
+                        lightcolor="#21e98b", darkcolor="#21e98b")
 
     def _build_layout(self) -> None:
         """Build the Orion-Core dashboard to match the supplied visual concept."""
+        self.status = tk.StringVar(value="Ожидание запуска")
         self.root.title(f"Orion-Core | GPU Compatibility Analyzer {__version__}")
         outer = tk.Frame(self.root, bg="#080d1d")
         outer.pack(fill="both", expand=True)
@@ -756,30 +760,134 @@ class OrionDashboard:
         self.root.after(100, self._drain_events)
 
     def _update_dashboard(self, report: dict[str, Any]) -> None:
-        system = report["system"]
-        os_info = system["os"]
-        self.card_values["os"].set(f"{os_info['system']} {os_info['release']}")
-        cpu = system.get("processor") or "Модель не сообщена ОС"
+        system = report.get("system", {})
+        os_info = system.get("os", {})
+        os_label = f"{os_info.get('system', 'ОС не определена')} {os_info.get('release', '')}".strip()
+        self.card_values["os"].set(os_label)
+
         win = report.get("windows_diagnostics", {})
         hardware = win.get("hardware", {})
         cpu_info = hardware.get("cpu") or {}
-        cpu = cpu_info.get("Name") or cpu
-        gpus = hardware.get("gpus") or []
+        cpu = cpu_info.get("Name") or system.get("processor") or "Модель не сообщена ОС"
         self.card_values["cpu"].set(str(cpu))
-        self.card_values["gpu"].set(str(gpus[0].get("Name") or "Не обнаружена") if gpus else "Нет данных")
+
+        gpus = hardware.get("gpus") or []
+        gpu_name = str(gpus[0].get("Name") or "Не обнаружена") if gpus else "Нет данных"
+        self.card_values["gpu"].set(gpu_name)
+        if gpus:
+            gpu = gpus[0]
+            driver = gpu.get("DriverVersion") or gpu.get("Driver")
+            memory_bytes = gpu.get("AdapterRAM") or gpu.get("DedicatedVideoMemory")
+            self.gpu_driver_var.set(f"Драйвер: {driver}" if driver else "Драйвер: не сообщён ОС")
+            if isinstance(memory_bytes, (int, float)) and memory_bytes > 0:
+                self.gpu_memory_var.set(f"Память: {memory_bytes / (1024 ** 3):.1f} GiB (по данным ОС)")
+            else:
+                self.gpu_memory_var.set("Память: данные ОС не сообщила")
+        else:
+            self.gpu_driver_var.set("Драйвер: нет данных")
+            self.gpu_memory_var.set("Память: нет данных")
+
         memory = system.get("memory_total_bytes")
-        self.card_values["ram"].set(f"{memory / (1024 ** 3):.1f} GiB" if memory else "Нет данных")
+        self.card_values["ram"].set(
+            f"{memory / (1024 ** 3):.1f} GiB" if isinstance(memory, (int, float)) and memory > 0 else "Нет данных"
+        )
+        self.gpu_api_var.set("API: D3D12 runtime не проверен")
+        self.verdict_var.set("Совместимость не определена")
+        self.verdict_note_var.set("Собрана информация об оборудовании; нужна отдельная проверка API и самой игры")
+        self.dx12_summary_var.set("Не проверено")
+        self.dx12_detail_var.set("Системная инвентаризация не заменяет D3D12 runtime probe")
+        self.metric_vars["vram"].set("Нет данных")
+        self.metric_vars["feature"].set("Не проверено")
+        self.metric_vars["gpu_perf"].set("Не измерялась")
         self.overview_text.set(
-            "Инвентаризация завершена. Это базовый отчёт о системе, а не проверка совместимости конкретной игры. "
-            "Нативный D3D12 GPU-тест пока запускается отдельно и здесь не имитируется."
+            "Инвентаризация завершена. Это отчёт о системе, а не подтверждение совместимости конкретной игры. "
+            "Для проверки D3D12 выберите отдельный native probe; анализ игровых файлов выполняется отдельно."
         )
         self._set_detail("Обзор", self.overview_text.get())
-        win = report.get("windows_diagnostics", {})
-        cpu_info = (win.get("hardware", {}).get("cpu") or {})
-        memory_text = f"{memory / (1024 ** 3):.2f} GiB" if isinstance(memory, int) else "Нет данных"
-        self._set_detail("CPU и память", f"CPU: {cpu}\nЯдер: {cpu_info.get('NumberOfCores', '—')}\nПотоков: {cpu_info.get('NumberOfLogicalProcessors', '—')}\nRAM: {memory_text}")
-        self._set_detail("Совместимость", "Каталог платформ описывает документированные API-контракты Windows PC и Xbox. Он не подтверждает совместимость конкретной игры, её бинарного файла или аппаратной конфигурации.")
-        self._log("SUCCESS", f"Система: {os_info['system']} {os_info['release']}; CPU: {cpu}; GPU: {self.card_values['gpu'].get()}.")
+        memory_text = f"{memory / (1024 ** 3):.2f} GiB" if isinstance(memory, (int, float)) else "Нет данных"
+        self._set_detail(
+            "CPU и память",
+            f"CPU: {cpu}\nЯдер: {cpu_info.get('NumberOfCores', '—')}\n"
+            f"Потоков: {cpu_info.get('NumberOfLogicalProcessors', '—')}\nRAM: {memory_text}"
+        )
+        self._set_detail(
+            "Совместимость",
+            "Каталог платформ описывает документированные API-контракты Windows PC и Xbox. "
+            "Он не подтверждает совместимость конкретной игры, её бинарного файла или аппаратной конфигурации."
+        )
+        self._set_stage(0, "complete", "Системная информация собрана")
+        if win.get("supported"):
+            self._set_stage(1, "complete", "Windows-данные получены")
+        else:
+            self._set_stage(1, "warning", "Инвентаризация Windows недоступна")
+        self.footer_state_var.set("Системный отчёт сформирован; игровые и GPU-тесты ещё не запускались")
+        self.header_status.set("СИСТЕМА ПРОВЕРЕНА")
+        self._log(
+            "SUCCESS",
+            f"Система: {os_label}; CPU: {cpu}; GPU: {self.card_values['gpu'].get()}."
+        )
+
+    def _update_gpu_dashboard(self, payload: dict[str, Any]) -> None:
+        adapters = payload.get("adapters", [])
+        hardware = [
+            item for item in adapters
+            if not item.get("software") and item.get("d3d12_device")
+        ]
+        if not hardware:
+            self.dx12_summary_var.set("Устройство не создано")
+            self.dx12_detail_var.set("Аппаратный D3D12 device не подтверждён")
+            self.gpu_api_var.set("API: аппаратная проверка не пройдена")
+            self.verdict_var.set("Недостаточно данных")
+            self.verdict_note_var.set("D3D12 probe не подтвердил создание аппаратного устройства")
+            self.probe_state_var.set("D3D12 runtime: аппаратный адаптер не прошёл проверку")
+            self._set_stage(2, "warning", "Аппаратный D3D12 device не создан")
+            self._set_stage(5, "warning", "Операции GPU не подтверждены")
+            self.metric_vars["feature"].set("Нет аппаратного device")
+            self.metric_vars["vram"].set("Нет данных")
+            self._log("WARNING", "D3D12 probe не подтвердил аппаратное устройство.")
+            return
+
+        adapter = hardware[0]
+        feature = adapter.get("feature_level", "неизвестен")
+        shader_model = adapter.get("shader_model", "неизвестна")
+        self.card_values["gpu"].set(str(adapter.get("name") or self.card_values["gpu"].get()))
+        self.dx12_summary_var.set("D3D12 device создан")
+        self.dx12_detail_var.set(f"Feature Level: {feature} · Shader Model: {shader_model}")
+        self.gpu_api_var.set(f"API: Direct3D 12 · FL {feature}")
+        self.metric_vars["feature"].set(str(feature))
+        self.metric_vars["gpu_perf"].set("Бенчмарк не запускался")
+        memory = adapter.get("video_memory", {}).get("local", {})
+        budget = memory.get("budget_bytes")
+        usage = memory.get("current_usage_bytes")
+        if isinstance(budget, int):
+            self.metric_vars["vram"].set(
+                f"Бюджет {budget / (1024 ** 3):.2f} GiB" +
+                (f" · занято {usage / (1024 ** 3):.2f} GiB" if isinstance(usage, int) else "")
+            )
+        else:
+            self.metric_vars["vram"].set("Бюджет недоступен")
+        self.metric_vars["ray"].set(str(adapter.get("ray_tracing_tier", "Нет данных")))
+        self.metric_vars["mesh"].set(str(adapter.get("mesh_shader_tier", "Нет данных")))
+        tests = (
+            adapter.get("direct_queue_fence_test"),
+            adapter.get("resource_copy_smoke_test"),
+            adapter.get("root_signature_smoke_test"),
+            adapter.get("render_smoke_test"),
+        )
+        passed = sum(value is True for value in tests)
+        failed = sum(value is False for value in tests)
+        self.probe_state_var.set(
+            f"GPU runtime smoke tests: {passed}/{len(tests)} успешно; ошибок: {failed}. "
+            "Это не игровой бенчмарк."
+        )
+        self._set_stage(2, "complete", f"D3D12 device создан · FL {feature}")
+        self._set_stage(5, "complete" if failed == 0 and passed == len(tests) else "warning",
+                        f"GPU smoke tests: {passed}/{len(tests)}")
+        self.verdict_var.set("D3D12 runtime проверен")
+        self.verdict_note_var.set("Это результат аппаратной проверки API, а не вердикт о совместимости Xbox-игр")
+        self.footer_state_var.set("Аппаратный D3D12 probe обработан; совместимость игр не устанавливается")
+        self.header_status.set("D3D12 ПРОВЕРЕН")
+        self._log("SUCCESS", f"D3D12 device: {adapter.get('name', 'GPU')}, Feature Level {feature}; smoke tests {passed}/{len(tests)}.")
 
 
 
