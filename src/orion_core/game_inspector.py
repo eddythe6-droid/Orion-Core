@@ -19,6 +19,7 @@ from .xex import inspect_xex, XEXError
 from .scarlett import inspect_scarlett_pe
 from .dependency_analysis import build_dependency_report
 from .import_resolver import build_local_export_index, resolve_imports_against_local_files
+from .api_catalog import assess_imported_symbols
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -245,6 +246,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         dependencies = record.get("dependency_analysis")
         if pe and pe.get("valid_pe_structure") and dependencies is not None:
             dependencies["local_resolution"] = resolve_imports_against_local_files(pe, local_export_index)
+            dependencies["api_catalog_assessment"] = assess_imported_symbols(pe)
     is_archive = target.is_file() and zipfile.is_zipfile(target)
     return {
         "schema_version": INSPECTOR_SCHEMA_VERSION,
