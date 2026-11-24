@@ -252,6 +252,27 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         raise GameInspectionError("path is neither a regular file nor a directory")
 
     records.sort(key=lambda item: item["path"].casefold())
+    shader_records = [item for item in records if item.get("shader_analysis") is not None]
+    shader_formats: dict[str, int] = {}
+    shader_assessments: dict[str, int] = {}
+    shader_stages: dict[str, int] = {}
+    for item in shader_records:
+        analysis = item["shader_analysis"]
+        fmt = analysis.get("format", "unrecognized")
+        shader_formats[fmt] = shader_formats.get(fmt, 0) + 1
+        assessment = analysis.get("assessment", analysis.get("header_assessment", "metadata_inspected"))
+        shader_assessments[assessment] = shader_assessments.get(assessment, 0) + 1
+        for program in analysis.get("shader_programs", []):
+            stage = program.get("stage", "unknown")
+            shader_stages[stage] = shader_stages.get(stage, 0) + 1
+    shader_summary = {
+        "files_with_shader_analysis": len(shader_records),
+        "formats": dict(sorted(shader_formats.items())),
+        "assessments": dict(sorted(shader_assessments.items())),
+        "dxbc_shader_stages": dict(sorted(shader_stages.items())),
+        "bytecode_validated": False,
+        "compatibility_established": False,
+    }
     # Resolve only against PE files already inventoried in this same folder.
     local_export_index = build_local_export_index(records)
     for record in records:
@@ -269,6 +290,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         "source_kind": "directory" if target.is_dir() else ("xdvdfs" if xdvdfs_report else ("iso9660" if iso_report else ("zip_archive" if is_archive else "file"))),
         "files_inspected": len(records),
         "type_counts": dict(sorted(counts.items())),
+        "shader_summary": shader_summary,
         "files": records,
         "iso9660": iso_report,
         "xdvdfs": xdvdfs_report,
