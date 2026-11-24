@@ -42,26 +42,42 @@ def _read_rdef_string(payload: bytes, offset: int) -> str | None:
 
 
 def _inspect_rdef(payload: bytes) -> dict[str, Any]:
-    """Parse the common 28-byte RDEF header and 32-byte resource bindings only."""
+    """Parse common RDEF resource bindings and bounded constant-buffer reflection."""
     if len(payload) < 28:
-        return {"assessment": "truncated_rdef_header", "resources": []}
+        return {"assessment": "truncated_rdef_header", "resources": [], "constant_buffers": []}
     cb_count, cb_offset, resource_count, resource_offset, target, flags, creator_offset = struct.unpack_from(
         "<7I", payload, 0
     )
-    if resource_count > 16384:
-        return {"assessment": "resource_count_exceeds_parser_limit", "resources": []}
-    table_end = resource_offset + resource_count * 32
-    if (resource_count and resource_offset < 28) or table_end > len(payload):
-        return {"assessment": "resource_binding_table_out_of_bounds", "resources": []}
+    if cb_count > 16384 or resource_count > 16384:
+        return {
+            "assessment": "rdef_record_count_exceeds_parser_limit",
+            "resources": [], "constant_buffers": [],
+        }
+
+    def table_is_valid(offset: int, count: int, stride: int) -> bool:
+        if count == 0:
+            return True
+        return offset >= 28 and offset + count * stride <= len(payload)
+
+    if not table_is_valid(resource_offset, resource_count, 32):
+        return {
+            "assessment": "resource_binding_table_out_of_bounds",
+            "resources": [], "constant_buffers": [],
+        }
+    if not table_is_valid(cb_offset, cb_count, 24):
+        return {
+            "assessment": "constant_buffer_table_out_of_bounds",
+            "resources": [], "constant_buffers": [],
+        }
+
     resources = []
     for index in range(resource_count):
         pos = resource_offset + index * 32
         name_offset, input_type, return_type, dimension, sample_count, bind_point, bind_count, bind_flags = struct.unpack_from(
             "<8I", payload, pos
         )
-        name = _read_rdef_string(payload, name_offset)
         resources.append({
-            "name": name,
+            "name": _read_rdef_string(payload, name_offset),
             "name_offset": name_offset,
             "input_type_id": input_type,
             "input_type": _RDEF_INPUT_TYPES.get(input_type, "unknown"),
@@ -73,24 +89,74 @@ def _inspect_rdef(payload: bytes) -> dict[str, Any]:
             "bind_count": bind_count,
             "bind_flags": bind_flags,
         })
+
+    constant_buffers = []
+    variable_total = 0
+    for index in range(cb_count):
+        pos = cb_offset + index * 24
+        name_offset, variable_count, variable_offset, buffer_size, buffer_flags, buffer_type = struct.unpack_from(
+            "<6I", payload, pos
+        )
+        if variable_count > 65536 or not table_is_valid(variable_offset, variable_count, 40):
+            return {
+                "assessment": "constant_buffer_variable_table_out_of_bounds",
+                "resources": resources, "constant_buffers": constant_buffers,
+            }
+        variables = []
+        for variable_index in range(variable_count):
+            variable_pos = variable_offset + variable_index * 40
+            (variable_name_offset, start_offset, variable_size, variable_flags,
+             type_offset, default_value_offset, start_texture, texture_size,
+             start_sampler, sampler_size) = struct.unpack_from("<10I", payload, variable_pos)
+            default_value_in_bounds = (
+                default_value_offset == 0
+                or default_value_offset + variable_size <= len(payload)
+            )
+            variables.append({
+                "name": _read_rdef_string(payload, variable_name_offset),
+                "name_offset": variable_name_offset,
+                "start_offset": start_offset,
+                "size_bytes": variable_size,
+                "flags": variable_flags,
+                "type_descriptor_offset": type_offset,
+                "default_value_offset": default_value_offset,
+                "default_value_in_bounds": default_value_in_bounds,
+                "start_texture": start_texture,
+                "texture_size": texture_size,
+                "start_sampler": start_sampler,
+                "sampler_size": sampler_size,
+            })
+        variable_total += variable_count
+        constant_buffers.append({
+            "name": _read_rdef_string(payload, name_offset),
+            "name_offset": name_offset,
+            "variable_count": variable_count,
+            "size_bytes": buffer_size,
+            "flags": buffer_flags,
+            "type_id": buffer_type,
+            "variables": variables,
+        })
+
     creator = _read_rdef_string(payload, creator_offset) if creator_offset else None
     return {
-        "assessment": "common_rdef_resource_table_parsed",
+        "assessment": "common_rdef_reflection_records_parsed",
         "constant_buffer_count": cb_count,
         "constant_buffer_table_offset": cb_offset,
+        "constant_buffer_variable_count": variable_total,
         "resource_count": resource_count,
         "resource_table_offset": resource_offset,
         "target_word": target,
         "flags": flags,
         "creator": creator,
         "resources": resources,
-        "constant_buffer_records_parsed": False,
+        "constant_buffers": constant_buffers,
+        "constant_buffer_records_parsed": True,
+        "variable_type_descriptors_decoded": False,
         "limitations": [
-            "Only the common RDEF header and 32-byte resource-binding records are parsed.",
-            "Constant-buffer records, variable layouts, signatures, and target-specific RDEF variants are not decoded.",
+            "Common 28-byte RDEF header, 32-byte resource bindings, 24-byte constant-buffer records, and 40-byte variable records are inventoried.",
+            "Variable type descriptors and version-specific RDEF variants are not decoded; default-value bytes are not interpreted.",
         ],
     }
-
 
 def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
     """Read container/chunk metadata; never validates signatures or executes bytecode."""
