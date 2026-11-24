@@ -132,6 +132,8 @@ def test_game_inspector_detects_shader_by_magic_not_extension(tmp_path):
     record = report["files"][0]
     assert record["shader_analysis"]["format"] == "spirv"
     assert record["shader_analysis"]["extension_format_match"] is True
+    assert report["shader_summary"]["files_with_shader_analysis"] == 1
+    assert report["shader_summary"]["formats"] == {"spirv": 1}
 
 
 def test_game_inspector_reports_malformed_shader_extension(tmp_path):
