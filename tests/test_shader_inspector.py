@@ -91,3 +91,23 @@ def test_rejects_dxbc_container_with_duplicate_offsets():
     struct.pack_into("<I", malformed, 36, first_offset)
     with pytest.raises(ShaderFormatError, match="duplicate"):
         inspect_shader_bytes(bytes(malformed))
+
+def test_parses_common_rdef_resource_bindings():
+    header = struct.pack("<7I", 0, 0, 1, 28, 0x50050, 0, 0)
+    resource = struct.pack("<8I", 60, 2, 0, 4, 0, 3, 1, 0)
+    payload = header + resource + b"albedoTexture\\x00"
+    report = inspect_shader_bytes(_container([("RDEF", payload)]))
+    reflection = report["chunks"][0]["resource_reflection"]
+    assert reflection["assessment"] == "common_rdef_resource_table_parsed"
+    assert reflection["resources"][0]["name"] == "albedoTexture"
+    assert reflection["resources"][0]["input_type"] == "texture"
+    assert reflection["resources"][0]["dimension"] == "texture2d"
+    assert reflection["resources"][0]["bind_point"] == 3
+
+
+def test_rdef_out_of_bounds_resource_table_is_reported_not_read():
+    payload = struct.pack("<7I", 0, 0, 2, 28, 0, 0, 0)
+    report = inspect_shader_bytes(_container([("RDEF", payload)]))
+    reflection = report["chunks"][0]["resource_reflection"]
+    assert reflection["assessment"] == "resource_binding_table_out_of_bounds"
+    assert reflection["resources"] == []
