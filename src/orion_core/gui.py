@@ -891,6 +891,9 @@ class OrionDashboard:
         ttk.Button(header, text="Очистить", command=self.clear_console).pack(
             side="right", padx=(4, 8), pady=3
         )
+        ttk.Button(header, text="Копировать", command=self.copy_console).pack(
+            side="right", padx=4, pady=3
+        )
         ttk.Button(header, text="Сохранить лог", command=self.save_log).pack(
             side="right", padx=4, pady=3
         )
@@ -911,6 +914,16 @@ class OrionDashboard:
         self.console.configure(yscrollcommand=scrollbar.set)
         self.console.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+        self.console.bind("<Control-c>", self._copy_console_selection)
+        self.console.bind("<Control-C>", self._copy_console_selection)
+        self.console.bind("<Control-a>", self._select_all_console)
+        self.console.bind("<Control-A>", self._select_all_console)
+        self.console_menu = tk.Menu(self.root, tearoff=False)
+        self.console_menu.add_command(label="Копировать выделенное", command=self.copy_console_selection)
+        self.console_menu.add_command(label="Копировать весь журнал", command=self.copy_console_all)
+        self.console_menu.add_separator()
+        self.console_menu.add_command(label="Выделить всё", command=self.select_all_console)
+        self.console.bind("<Button-3>", self._show_console_menu)
 
     def _build_footer(self, parent: tk.Misc) -> None:
         footer = tk.Frame(parent, bg="#090e21", height=52,
@@ -1622,6 +1635,65 @@ class OrionDashboard:
         except Exception as exc:
             self._emit("ERROR", f"D3D12-тест не завершён: {type(exc).__name__}: {exc}")
             self.events.put(("gpu_done", False))
+
+    def _select_all_console(self, _event: Any = None) -> str:
+        self.select_all_console()
+        return "break"
+
+    def select_all_console(self) -> None:
+        self.console.tag_add("sel", "1.0", "end-1c")
+        self.console.mark_set("insert", "end-1c")
+        self.console.see("insert")
+
+    def _copy_console_selection(self, _event: Any = None) -> str:
+        self.copy_console_selection()
+        return "break"
+
+    def _copy_text_to_clipboard(self, value: str) -> bool:
+        if not value:
+            return False
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(value)
+            self.root.update_idletasks()
+        except tk.TclError as exc:
+            self._log("ERROR", f"Не удалось скопировать текст в буфер обмена: {exc}")
+            return False
+        self.status.set("Текст скопирован в буфер обмена")
+        return True
+
+    def copy_console_selection(self) -> None:
+        try:
+            value = self.console.get("sel.first", "sel.last")
+        except tk.TclError:
+            value = ""
+        if not value:
+            self.status.set("Нет выделенного текста — используйте «Копировать» для всего журнала")
+            return
+        if self._copy_text_to_clipboard(value):
+            self._log("SUCCESS", "Выделенный фрагмент консоли скопирован.")
+
+    def copy_console_all(self) -> None:
+        value = self.console.get("1.0", "end-1c")
+        if self._copy_text_to_clipboard(value):
+            self._log("SUCCESS", "Полный журнал консоли скопирован.")
+
+    def copy_console(self) -> None:
+        """Copy the selection, or the full console when nothing is selected."""
+        try:
+            selected = self.console.get("sel.first", "sel.last")
+        except tk.TclError:
+            selected = ""
+        if selected:
+            self.copy_console_selection()
+        else:
+            self.copy_console_all()
+
+    def _show_console_menu(self, event: tk.Event) -> None:
+        try:
+            self.console_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.console_menu.grab_release()
 
     def clear_console(self) -> None:
         self.console.configure(state="normal")
