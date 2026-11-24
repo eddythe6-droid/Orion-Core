@@ -1,4 +1,5 @@
 import json
+import struct
 import zipfile
 
 import pytest
@@ -96,3 +97,28 @@ def test_game_inspector_prefers_xdvdfs_over_iso9660(tmp_path):
     assert report["source_kind"] == "xdvdfs"
     assert report["xdvdfs"]["format"] == "XDVDFS"
     assert report["iso9660"] is None
+
+
+def test_game_inspector_includes_scarlett_assessment_for_valid_pe(tmp_path):
+    path = tmp_path / "ordinary.exe"
+    data = bytearray(0x400)
+    data[:2] = b"MZ"
+    struct.pack_into("<I", data, 0x3C, 0x80)
+    data[0x80:0x84] = b"PE\\0\\0"
+    struct.pack_into("<HHIIIHH", data, 0x84, 0x8664, 1, 123, 0, 0, 0xF0, 0x22)
+    opt = 0x98
+    struct.pack_into("<H", data, opt, 0x20B)
+    struct.pack_into("<I", data, opt + 16, 0x1000)
+    struct.pack_into("<Q", data, opt + 24, 0x140000000)
+    struct.pack_into("<I", data, opt + 108, 16)
+    struct.pack_into("<H", data, opt + 68, 3)
+    sec = opt + 0xF0
+    data[sec:sec + 8] = b".text\\0\\0\\0"
+    struct.pack_into("<IIII", data, sec + 8, 0x100, 0x1000, 0x200, 0x200)
+    path.write_bytes(data)
+
+    report = inspect_game_path(path)
+    record = report["files"][0]
+    assert record["pe_analysis"]["architecture"] == "x86_64"
+    assert record["scarlett_analysis"]["assessment"] == "x64_pe_candidate_no_specific_gdk_imports"
+    assert record["scarlett_analysis"]["authenticity_verified"] is False
