@@ -199,13 +199,74 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
     }
 
 
+def _spirv_string(words: tuple[int, ...] | list[int]) -> str | None:
+    raw = b"".join(struct.pack("<I", word) for word in words)
+    terminator = raw.find(b"\\x00")
+    if terminator < 0:
+        return None
+    return raw[:terminator].decode("utf-8", errors="replace")
+
+
+def _inspect_spirv_instructions(data: bytes, endian: str) -> dict[str, Any]:
+    """Inventory selected SPIR-V instructions with strict word-count bounds."""
+    if (len(data) - 20) % 4:
+        raise ShaderFormatError("SPIR-V instruction stream is not word-aligned")
+    words = struct.unpack(endian + f"{(len(data) - 20) // 4}I", data[20:]) if len(data) > 20 else ()
+    capabilities: set[int] = set()
+    extensions: set[str] = set()
+    entry_points: list[dict[str, Any]] = []
+    opcode_counts: dict[str, int] = {}
+    cursor = 0
+    instruction_count = 0
+    while cursor < len(words):
+        first = words[cursor]
+        word_count = first >> 16
+        opcode = first & 0xFFFF
+        if word_count == 0:
+            raise ShaderFormatError("SPIR-V instruction has zero word count")
+        end = cursor + word_count
+        if end > len(words):
+            raise ShaderFormatError("SPIR-V instruction extends beyond module")
+        operands = words[cursor + 1:end]
+        opcode_counts[str(opcode)] = opcode_counts.get(str(opcode), 0) + 1
+        instruction_count += 1
+        if opcode == 17:  # OpCapability
+            if len(operands) != 1:
+                raise ShaderFormatError("SPIR-V OpCapability has invalid word count")
+            capabilities.add(operands[0])
+        elif opcode == 10:  # OpExtension
+            value = _spirv_string(operands)
+            if value is None:
+                raise ShaderFormatError("SPIR-V OpExtension string is not terminated")
+            extensions.add(value)
+        elif opcode == 15:  # OpEntryPoint
+            if len(operands) < 3:
+                raise ShaderFormatError("SPIR-V OpEntryPoint is truncated")
+            name = _spirv_string(operands[2:])
+            if name is None:
+                raise ShaderFormatError("SPIR-V OpEntryPoint name is not terminated")
+            entry_points.append({
+                "execution_model": operands[0],
+                "entry_point_id": operands[1],
+                "name": name,
+            })
+        cursor = end
+    return {
+        "instruction_count": instruction_count,
+        "opcode_counts": dict(sorted(opcode_counts.items(), key=lambda item: int(item[0]))),
+        "capabilities": sorted(capabilities),
+        "extensions": sorted(extensions),
+        "entry_points": entry_points,
+    }
+
+
 def inspect_spirv_bytes(data: bytes) -> dict[str, Any]:
-    """Recognize and validate only the fixed SPIR-V module header."""
-    if len(data) < 4 or data[:4] not in (b"\x03\x02#\x07", b"\x07#\x02\x03"):
+    """Inspect the fixed SPIR-V header and safely inventory selected instructions."""
+    if len(data) < 4 or data[:4] not in (b"\\x03\\x02#\\x07", b"\\x07#\\x02\\x03"):
         raise ShaderFormatError("missing SPIR-V magic")
     if len(data) < 20:
         raise ShaderFormatError("SPIR-V module header is truncated")
-    endian = "<" if data[:4] == b"\x03\x02#\x07" else ">"
+    endian = "<" if data[:4] == b"\\x03\\x02#\\x07" else ">"
     magic, version, generator, bound, schema = struct.unpack_from(endian + "5I", data, 0)
     major = (version >> 16) & 0xFF
     minor = (version >> 8) & 0xFF
@@ -214,17 +275,19 @@ def inspect_spirv_bytes(data: bytes) -> dict[str, Any]:
         raise ShaderFormatError("SPIR-V id bound must be non-zero")
     if schema != 0:
         raise ShaderFormatError("SPIR-V reserved schema word must be zero")
+    inventory = _inspect_spirv_instructions(data, endian)
     return {
         "format": "spirv", "magic": f"0x{magic:08x}",
         "endianness": "little" if endian == "<" else "big",
         "version_word": f"0x{version:08x}", "version": f"{major}.{minor}",
         "version_assessment": version_assessment, "generator_word": generator,
         "id_bound": bound, "schema": schema, "module_bytes": len(data),
-        "instruction_stream_parsed": False, "bytecode_validated": False,
+        **inventory,
+        "instruction_stream_parsed": True, "bytecode_validated": False,
         "execution_performed": False, "compatibility_established": False,
         "limitations": [
-            "Only the fixed five-word SPIR-V header is inspected.",
-            "Instruction stream, capabilities, extensions, entry points, descriptors, and execution modes are not decoded.",
+            "Only instruction framing and selected OpCapability, OpExtension, and OpEntryPoint operands are inventoried.",
+            "The module is not semantically validated; IDs, types, control flow, decorations, descriptors, and execution modes are not resolved.",
         ],
     }
 
