@@ -378,8 +378,6 @@ class OrionDashboard:
                             imported = symbol_result.get("import", {})
                             label = imported.get("name", f"ordinal #{imported.get('ordinal', '?')}")
                             lines.append(f"      {label}: {symbol_result.get('status')}")
-            lines.extend([
-            ])
             exports = pe.get("exported_functions", [])
             for exported in exports[:30]:
                 names = ", ".join(exported.get("names", [])) or f"ordinal #{exported.get('ordinal')}"
@@ -390,7 +388,7 @@ class OrionDashboard:
         if report.get("warnings"):
             lines.extend(["", "Предупреждения:"] + [f"  • {warning}" for warning in report["warnings"]])
         lines.extend(["", "Ограничения: анализ только для чтения; исполняемые файлы не запускаются.",
-                      "Наличие DLL или экспортов не доказывает совместимость с Windows."])
+                      "Локальное совпадение импорта с экспортом не доказывает ABI- или runtime-совместимость."])
         self._set_detail("Анализ игры", "\n".join(lines))
         self.detail_notebook.select(list(self.detail_views).index("Анализ игры"))
         self._log("SUCCESS", "Отчёт Game Inspector отображён в интерфейсе.")
