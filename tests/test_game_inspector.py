@@ -149,11 +149,11 @@ def test_game_inspector_summarizes_spirv_metadata(tmp_path):
     # OpCapability Shader and OpEntryPoint GLCompute %3 "main".
     name = b"main\x00"
     name += b"\x00" * ((-len(name)) % 4)
-    name_word = struct.unpack("<I", name)[0]
+    name_words = list(struct.unpack("<" + "I" * (len(name) // 4), name))
     words = [
         0x07230203, 0x00010000, 1, 16, 0,
         (2 << 16) | 17, 1,
-        (4 << 16) | 15, 5, 3, name_word,
+        (3 + len(name_words) << 16) | 15, 5, 3, *name_words,
     ]
     (tmp_path / "compute.spv").write_bytes(struct.pack("<" + "I" * len(words), *words))
     report = inspect_game_path(tmp_path)
