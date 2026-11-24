@@ -129,126 +129,512 @@ class OrionDashboard:
                         darkcolor=accent)
 
     def _build_layout(self) -> None:
-        outer = ttk.Frame(self.root, padding=18)
+        """Build the Orion-Core dashboard to match the supplied visual concept."""
+        self.root.title(f"Orion-Core | GPU Compatibility Analyzer {__version__}")
+        outer = tk.Frame(self.root, bg="#080d1d")
         outer.pack(fill="both", expand=True)
-        header = ttk.Frame(outer)
-        header.pack(fill="x", pady=(0, 14))
-        ttk.Label(header, text="ORION-CORE", style="Title.TLabel").pack(side="left")
-        ttk.Label(header, text="XBOX → WINDOWS COMPATIBILITY RESEARCH LAB", style="Muted.TLabel").pack(side="left", padx=18, pady=(9, 0))
-        self.status = tk.StringVar(value="Ожидание запуска")
-        ttk.Label(header, textvariable=self.status, style="Muted.TLabel").pack(side="right", pady=(9, 0))
 
-        cards = ttk.Frame(outer)
-        cards.pack(fill="x", pady=(0, 14))
-        self.card_values: dict[str, tk.StringVar] = {}
-        for key, title, initial in (
-            ("os", "ОПЕРАЦИОННАЯ СИСТЕМА", "Не проверено"),
-            ("cpu", "ПРОЦЕССОР", "Не проверено"),
-            ("gpu", "ВИДЕОАДАПТЕР", "Не проверено"),
-            ("ram", "ОПЕРАТИВНАЯ ПАМЯТЬ", "Не проверено"),
-        ):
-            card = ttk.Frame(cards, style="Card.TFrame", padding=12)
-            card.pack(side="left", fill="both", expand=True, padx=(0, 8))
-            ttk.Label(card, text=title, style="CardTitle.TLabel").pack(anchor="w")
-            value = tk.StringVar(value=initial)
-            self.card_values[key] = value
-            ttk.Label(card, textvariable=value, style="CardValue.TLabel", wraplength=220).pack(anchor="w", pady=(7, 0))
+        self._build_header(outer)
 
-        actions = ttk.Frame(outer)
-        actions.pack(fill="x", pady=(0, 10))
-        self.scan_button = ttk.Button(actions, text="▶  Запустить диагностику", style="Accent.TButton", command=self.start_scan)
-        self.scan_button.pack(side="left")
-        ttk.Button(actions, text="Сохранить лог", command=self.save_log).pack(side="left", padx=8)
-        ttk.Button(actions, text="Экспорт отчёта JSON", command=self.export_report).pack(side="left")
-        self.gpu_button = ttk.Button(actions, text="▶  Запустить D3D12-тест", command=self.choose_gpu_probe)
-        self.gpu_button.pack(side="left", padx=8)
-        ttk.Button(actions, text="Сохранить в историю", command=self.save_history).pack(side="left", padx=8)
-        ttk.Button(actions, text="История", command=self.refresh_history).pack(side="left")
-        ttk.Button(actions, text="Очистить консоль", command=self.clear_console).pack(side="right")
+        body = tk.Frame(outer, bg="#080d1d")
+        body.pack(fill="both", expand=True)
 
-        split = ttk.Panedwindow(outer, orient="vertical")
-        split.pack(fill="both", expand=True)
-        overview = ttk.Frame(split, style="Card.TFrame", padding=12)
-        self.overview_text = tk.StringVar(value="Запустите диагностику, чтобы получить сведения о системе.")
-        self.detail_notebook = ttk.Notebook(overview)
-        self.detail_notebook.pack(fill="both", expand=True)
-        self.detail_views = {}
-        for tab_name in ("Обзор", "Анализ игры", "CPU и память", "GPU / D3D12", "Совместимость", "История"):
-            tab = ttk.Frame(self.detail_notebook, padding=10)
-            text_view = tk.Text(tab, bg="#192535", fg="#e7eef7", insertbackground="white", relief="flat", wrap="word", font=("Segoe UI", 10), state="disabled")
-            text_view.pack(fill="both", expand=True)
+        self._build_sidebar(body)
+
+        self.main_area = tk.Frame(body, bg="#080d1d")
+        self.main_area.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self.main_area.rowconfigure(0, weight=1)
+        self.main_area.columnconfigure(0, weight=1)
+
+        self.page_host = tk.Frame(self.main_area, bg="#080d1d")
+        self.page_host.grid(row=0, column=0, sticky="nsew")
+        self.page_host.rowconfigure(0, weight=1)
+        self.page_host.columnconfigure(0, weight=1)
+
+        self.dashboard_page = tk.Frame(self.page_host, bg="#080d1d")
+        self.details_page = tk.Frame(self.page_host, bg="#080d1d")
+        for page in (self.dashboard_page, self.details_page):
+            page.grid(row=0, column=0, sticky="nsew")
+
+        self._build_dashboard_page(self.dashboard_page)
+        self._build_details_page(self.details_page)
+        self._build_console(self.main_area)
+        self._build_footer(outer)
+
+        self._navigate("Главная")
+
+    def _build_header(self, parent: tk.Misc) -> None:
+        header = tk.Frame(parent, bg="#090e21", height=76,
+                          highlightthickness=1, highlightbackground="#252d58")
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        brand = tk.Frame(header, bg="#090e21")
+        brand.pack(side="left", padx=(18, 10), fill="y")
+        tk.Label(brand, text="✦", bg="#090e21", fg="#8b4dff",
+                 font=("Segoe UI Symbol", 34, "bold")).pack(side="left", padx=(0, 12))
+        title_block = tk.Frame(brand, bg="#090e21")
+        title_block.pack(side="left", pady=10)
+        tk.Label(title_block, text="Orion-Core", bg="#090e21", fg="#f5f6ff",
+                 font=("Segoe UI Semibold", 22)).pack(anchor="w")
+        tk.Label(title_block, text=f"GPU Compatibility Analyzer  v{__version__}",
+                 bg="#090e21", fg="#aab5d6", font=("Segoe UI", 9)).pack(anchor="w")
+
+        self.header_status = tk.StringVar(value="ГОТОВО")
+        status = tk.Frame(header, bg="#090e21")
+        status.pack(side="right", padx=24)
+        tk.Label(status, text="●", bg="#090e21", fg="#18e58a",
+                 font=("Segoe UI", 14)).pack(side="left", padx=(0, 8))
+        tk.Label(status, textvariable=self.header_status, bg="#090e21",
+                 fg="#e6eaff", font=("Segoe UI Semibold", 10)).pack(side="left")
+
+    def _build_sidebar(self, parent: tk.Misc) -> None:
+        sidebar = tk.Frame(parent, bg="#0b1025", width=166,
+                           highlightthickness=1, highlightbackground="#242b55")
+        sidebar.pack(side="left", fill="y", padx=(0, 10))
+        sidebar.pack_propagate(False)
+
+        nav_items = (
+            ("⌂", "Главная"),
+            ("▣", "GPU"),
+            ("⊗", "DirectX 12"),
+            ("✣", "Шейдеры"),
+            ("◈", "Текстуры"),
+            ("⚙", "Конвейер"),
+            ("⬡", "Совместимость"),
+            ("▤", "Отчёт"),
+            ("⚙", "Настройки"),
+            ("♙", "О программе"),
+        )
+        self.nav_buttons: dict[str, tk.Button] = {}
+        tk.Label(sidebar, text="НАВИГАЦИЯ", bg="#0b1025", fg="#65749e",
+                 font=("Segoe UI Semibold", 8)).pack(anchor="w", padx=16, pady=(18, 12))
+        for icon, name in nav_items:
+            button = tk.Button(
+                sidebar, text=f"  {icon}   {name}", anchor="w",
+                command=lambda item=name: self._navigate(item),
+                bg="#0b1025", fg="#c4cce7", activebackground="#24165d",
+                activeforeground="#ffffff", relief="flat", bd=0,
+                padx=12, pady=10, cursor="hand2",
+                font=("Segoe UI Semibold", 9),
+            )
+            button.pack(fill="x", padx=6, pady=2)
+            self.nav_buttons[name] = button
+        tk.Frame(sidebar, bg="#27234f", height=1).pack(fill="x", padx=12, pady=(16, 10))
+        tk.Label(sidebar, text="READ-ONLY MODE", bg="#0b1025", fg="#7e8aac",
+                 font=("Segoe UI", 8)).pack(anchor="w", padx=16)
+        tk.Label(sidebar, text="Файлы не запускаются\nи не изменяются",
+                 bg="#0b1025", fg="#687698", justify="left",
+                 font=("Segoe UI", 8)).pack(anchor="w", padx=16, pady=(5, 0))
+
+    def _panel(self, parent: tk.Misc, title: str, icon: str = "") -> tuple[tk.Frame, tk.Frame]:
+        panel = tk.Frame(parent, bg="#10172c", highlightthickness=1,
+                         highlightbackground="#343b76", bd=0)
+        heading = tk.Frame(panel, bg="#10172c", height=34)
+        heading.pack(fill="x", padx=10, pady=(5, 0))
+        heading.pack_propagate(False)
+        if icon:
+            tk.Label(heading, text=icon, bg="#10172c", fg="#55aaff",
+                     font=("Segoe UI Symbol", 14, "bold")).pack(side="left", padx=(2, 8))
+        tk.Label(heading, text=title, bg="#10172c", fg="#dce4ff",
+                 font=("Segoe UI Semibold", 9)).pack(side="left")
+        body = tk.Frame(panel, bg="#10172c")
+        body.pack(fill="both", expand=True, padx=10, pady=(3, 9))
+        return panel, body
+
+    def _build_dashboard_page(self, parent: tk.Misc) -> None:
+        parent.grid_rowconfigure(1, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+
+        cards = tk.Frame(parent, bg="#080d1d")
+        cards.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        for column, weight in enumerate((11, 13, 8, 12)):
+            cards.grid_columnconfigure(column, weight=weight, uniform="summary")
+
+        self.card_values: dict[str, tk.StringVar] = {
+            "os": tk.StringVar(value="Не проверено"),
+            "cpu": tk.StringVar(value="Не проверено"),
+            "gpu": tk.StringVar(value="Не обнаружена"),
+            "ram": tk.StringVar(value="Нет данных"),
+        }
+        self.system_os_var = self.card_values["os"]
+        self.system_cpu_var = self.card_values["cpu"]
+        self.system_ram_var = self.card_values["ram"]
+        self.gpu_name_var = self.card_values["gpu"]
+        self.gpu_memory_var = tk.StringVar(value="Память: нет данных")
+        self.gpu_driver_var = tk.StringVar(value="Драйвер: нет данных")
+        self.gpu_api_var = tk.StringVar(value="API: не проверено")
+        self.dx12_summary_var = tk.StringVar(value="Не проверено")
+        self.dx12_detail_var = tk.StringVar(value="D3D12 probe не запускался")
+        self.verdict_var = tk.StringVar(value="Совместимость не определена")
+        self.verdict_note_var = tk.StringVar(value="Сначала соберите данные системы")
+        
+        system_panel, system_body = self._panel(cards, "Информация о системе", "▣")
+        system_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        for label, variable in (("ОС:", self.system_os_var), ("Процессор:", self.system_cpu_var),
+                                ("ОЗУ:", self.system_ram_var)):
+            line = tk.Frame(system_body, bg="#10172c")
+            line.pack(fill="x", pady=3)
+            tk.Label(line, text=label, width=11, anchor="w", bg="#10172c",
+                     fg="#8997bc", font=("Segoe UI", 9)).pack(side="left")
+            tk.Label(line, textvariable=variable, anchor="w", bg="#10172c",
+                     fg="#f0f3ff", font=("Segoe UI Semibold", 9)).pack(side="left", fill="x", expand=True)
+
+        gpu_panel, gpu_body = self._panel(cards, "Видеокарта", "▦")
+        gpu_panel.grid(row=0, column=1, sticky="nsew", padx=3)
+        tk.Label(gpu_body, textvariable=self.gpu_name_var, bg="#10172c",
+                 fg="#f3f5ff", font=("Segoe UI Semibold", 13),
+                 wraplength=260).pack(anchor="w", pady=(2, 5))
+        for variable in (self.gpu_memory_var, self.gpu_driver_var, self.gpu_api_var):
+            tk.Label(gpu_body, textvariable=variable, bg="#10172c", fg="#aebbdc",
+                     font=("Segoe UI", 8)).pack(anchor="w", pady=1)
+
+        dx_panel, dx_body = self._panel(cards, "DirectX 12", "⊗")
+        dx_panel.grid(row=0, column=2, sticky="nsew", padx=3)
+        tk.Label(dx_body, textvariable=self.dx12_summary_var, bg="#10172c",
+                 fg="#e4eaff", font=("Segoe UI Semibold", 13),
+                 justify="center").pack(fill="x", pady=(8, 3))
+        tk.Label(dx_body, textvariable=self.dx12_detail_var, bg="#10172c",
+                 fg="#91a5c8", font=("Segoe UI", 8), justify="center",
+                 wraplength=180).pack(fill="x")
+
+        verdict_panel, verdict_body = self._panel(cards, "Общий вердикт", "⬡")
+        verdict_panel.grid(row=0, column=3, sticky="nsew", padx=(6, 0))
+        self.verdict_box = tk.Frame(verdict_body, bg="#172039",
+                                    highlightthickness=1, highlightbackground="#5360a0")
+        self.verdict_box.pack(fill="both", expand=True, padx=1, pady=2)
+        tk.Label(self.verdict_box, text="◈", bg="#172039", fg="#7b64ff",
+                 font=("Segoe UI Symbol", 24)).pack(side="left", padx=12)
+        verdict_text = tk.Frame(self.verdict_box, bg="#172039")
+        verdict_text.pack(side="left", fill="both", expand=True, pady=8)
+        tk.Label(verdict_text, textvariable=self.verdict_var, bg="#172039",
+                 fg="#dce4ff", font=("Segoe UI Semibold", 11),
+                 wraplength=210, justify="left").pack(anchor="w")
+        tk.Label(verdict_text, textvariable=self.verdict_note_var, bg="#172039",
+                 fg="#9eaccd", font=("Segoe UI", 8),
+                 wraplength=230, justify="left").pack(anchor="w", pady=(3, 0))
+
+        middle = tk.Frame(parent, bg="#080d1d")
+        middle.grid(row=1, column=0, sticky="nsew")
+        middle.grid_columnconfigure(0, weight=20, uniform="middle")
+        middle.grid_columnconfigure(1, weight=12, uniform="middle")
+        middle.grid_columnconfigure(2, weight=10, uniform="middle")
+        middle.grid_rowconfigure(0, weight=1)
+
+        stages_panel, stages_body = self._panel(middle, "Этапы проверки", "▥")
+        stages_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        stage_names = (
+            "Сбор информации о системе",
+            "Инвентаризация Windows и драйверов",
+            "Проверка устройства DirectX 12",
+            "Анализ шейдеров и форматов",
+            "Инвентаризация текстур и ресурсов",
+            "Проверка операций графического конвейера",
+        )
+        self.stage_vars: list[tk.StringVar] = []
+        self.stage_bars: list[ttk.Progressbar] = []
+        self.stage_icons: list[tk.Label] = []
+        self.stage_details: list[tk.Label] = []
+        for index, name in enumerate(stage_names):
+            row = tk.Frame(stages_body, bg="#10172c")
+            row.pack(fill="x", pady=4)
+            icon = tk.Label(row, text="○", width=2, bg="#10172c", fg="#637191",
+                            font=("Segoe UI", 13, "bold"))
+            icon.pack(side="left", padx=(2, 7))
+            self.stage_icons.append(icon)
+            tk.Label(row, text=name, width=36, anchor="w", bg="#10172c",
+                     fg="#dce4ff", font=("Segoe UI", 8)).pack(side="left")
+            bar = ttk.Progressbar(row, maximum=100, value=0,
+                                  style="Accent.Horizontal.TProgressbar")
+            bar.pack(side="left", fill="x", expand=True, padx=(6, 8), ipady=2)
+            self.stage_bars.append(bar)
+            state = tk.StringVar(value="Ожидает")
+            self.stage_vars.append(state)
+            detail = tk.Label(row, textvariable=state, width=16, anchor="e",
+                              bg="#10172c", fg="#7785a8",
+                              font=("Segoe UI", 8))
+            detail.pack(side="right", padx=(2, 1))
+            self.stage_details.append(detail)
+
+        metrics_panel, metrics_body = self._panel(middle, "Ключевые показатели", "⚙")
+        metrics_panel.grid(row=0, column=1, sticky="nsew", padx=3)
+        self.metric_vars = {
+            "gpu_perf": tk.StringVar(value="Не измерялась"),
+            "vram": tk.StringVar(value="Нет данных"),
+            "feature": tk.StringVar(value="Не проверено"),
+            "ray": tk.StringVar(value="Нет данных"),
+            "mesh": tk.StringVar(value="Нет данных"),
+        }
+        metric_rows = (
+            ("Производительность GPU", "gpu_perf"),
+            ("Видеопамять / бюджет", "vram"),
+            ("DirectX Feature Level", "feature"),
+            ("Ray Tracing", "ray"),
+            ("Mesh Shaders", "mesh"),
+        )
+        for label, key in metric_rows:
+            line = tk.Frame(metrics_body, bg="#10172c")
+            line.pack(fill="x", pady=7)
+            tk.Label(line, text="◆", bg="#10172c", fg="#54a6ff",
+                     font=("Segoe UI", 11)).pack(side="left", padx=(2, 8))
+            text_block = tk.Frame(line, bg="#10172c")
+            text_block.pack(side="left", fill="x", expand=True)
+            tk.Label(text_block, text=label, bg="#10172c", fg="#aab8da",
+                     font=("Segoe UI", 8)).pack(anchor="w")
+            tk.Label(text_block, textvariable=self.metric_vars[key], bg="#10172c",
+                     fg="#f0f3ff", font=("Segoe UI Semibold", 9)).pack(anchor="w")
+
+        graph_panel, graph_body = self._panel(middle, "Графический тест", "▣")
+        graph_panel.grid(row=0, column=2, sticky="nsew", padx=(6, 0))
+        self.probe_canvas = tk.Canvas(graph_body, bg="#050a16", height=108,
+                                      highlightthickness=1, highlightbackground="#29375f")
+        self.probe_canvas.pack(fill="x", pady=(2, 8))
+        self.probe_canvas.create_line(0, 27, 400, 27, fill="#101c34")
+        self.probe_canvas.create_line(0, 54, 400, 54, fill="#101c34")
+        self.probe_canvas.create_line(0, 81, 400, 81, fill="#101c34")
+        self.probe_canvas.create_line(65, 0, 65, 110, fill="#101c34")
+        self.probe_canvas.create_line(130, 0, 130, 110, fill="#101c34")
+        self.probe_canvas.create_line(195, 0, 195, 110, fill="#101c34")
+        self.probe_canvas.create_line(260, 0, 260, 110, fill="#101c34")
+        self.probe_canvas.create_oval(150, 25, 190, 65, outline="#5a4aa8", width=2)
+        self.probe_canvas.create_text(170, 45, text="GPU", fill="#a89bff",
+                                     font=("Segoe UI Semibold", 10))
+        self.probe_state_var = tk.StringVar(value="Нативный тест не запускался")
+        tk.Label(graph_body, textvariable=self.probe_state_var, bg="#10172c",
+                 fg="#aab8da", font=("Segoe UI", 8), wraplength=230,
+                 justify="center").pack(fill="x", pady=(0, 5))
+        self.gpu_button = ttk.Button(graph_body, text="Выбрать D3D12 Probe…",
+                                     command=self.choose_gpu_probe)
+        self.gpu_button.pack(fill="x")
+
+    def _build_details_page(self, parent: tk.Misc) -> None:
+        self.overview_text = tk.StringVar(
+            value="Запустите диагностику, чтобы получить сведения о системе."
+        )
+        self.detail_notebook = ttk.Notebook(parent)
+        self.detail_notebook.pack(fill="both", expand=True, padx=2, pady=2)
+        self.detail_views: dict[str, tk.Text] = {}
+        for tab_name in ("Обзор", "Анализ игры", "CPU и память", "GPU / D3D12",
+                         "Совместимость", "История", "Настройки", "О программе"):
+            tab = tk.Frame(self.detail_notebook, bg="#10172c")
+            text_view = tk.Text(tab, bg="#0b1221", fg="#e4eaff",
+                                insertbackground="#ffffff", relief="flat",
+                                wrap="word", font=("Consolas", 10),
+                                padx=10, pady=10, state="disabled")
+            text_view.pack(fill="both", expand=True, padx=8, pady=8)
             self.detail_notebook.add(tab, text=tab_name)
             self.detail_views[tab_name] = text_view
+
         self.game_inspection_report = None
-        self._set_detail("Анализ игры", "Выберите папку игры, EXE/DLL или образ ISO/XISO. Анализ выполняется локально, только для чтения; файлы не запускаются и не распаковываются.")
+        self._set_detail(
+            "Анализ игры",
+            "Выберите папку игры, EXE/DLL или образ ISO/XISO. Анализ выполняется локально, "
+            "только для чтения; файлы не запускаются и не распаковываются."
+        )
+        game_tab = self.detail_notebook.nametowidget(self.detail_notebook.tabs()[1])
+        game_controls = tk.Frame(game_tab, bg="#10172c")
+        game_controls.pack(fill="x", padx=8, pady=(8, 0), before=self.detail_views["Анализ игры"])
+        tk.Label(game_controls, text="Файл или папка игры:", bg="#10172c",
+                 fg="#b8c5e5", font=("Segoe UI", 9)).pack(side="left")
         self.game_path = tk.StringVar()
-        game_controls = ttk.Frame(self.detail_notebook.nametowidget(self.detail_notebook.tabs()[1]), padding=8)
-        game_controls.pack(fill="x", before=self.detail_views["Анализ игры"])
-        ttk.Label(game_controls, text="Файл или папка игры:").pack(side="left")
-        ttk.Entry(game_controls, textvariable=self.game_path).pack(side="left", fill="x", expand=True, padx=8)
+        ttk.Entry(game_controls, textvariable=self.game_path).pack(
+            side="left", fill="x", expand=True, padx=8
+        )
         ttk.Button(game_controls, text="Папка…", command=self.choose_game_folder).pack(side="left")
-        ttk.Button(game_controls, text="Файл…", command=self.choose_game_file).pack(side="left", padx=(5, 0))
-        self.game_button = ttk.Button(game_controls, text="Анализировать", style="Accent.TButton", command=self.start_game_inspection)
+        ttk.Button(game_controls, text="Файл…", command=self.choose_game_file).pack(
+            side="left", padx=(5, 0)
+        )
+        self.game_button = ttk.Button(
+            game_controls, text="Анализировать", style="Accent.TButton",
+            command=self.start_game_inspection
+        )
         self.game_button.pack(side="left", padx=(8, 0))
-        ttk.Button(game_controls, text="Экспорт JSON", command=self.export_game_report).pack(side="left", padx=8)
+        ttk.Button(game_controls, text="Экспорт JSON",
+                   command=self.export_game_report).pack(side="left", padx=8)
         self.game_progress = ttk.Progressbar(game_controls, mode="indeterminate", length=110)
         self.game_progress.pack(side="right", padx=(8, 0))
 
-        dependency_panel = ttk.Frame(self.detail_notebook.nametowidget(self.detail_notebook.tabs()[1]), padding=(8, 0, 8, 8))
-        dependency_panel.pack(fill="both", before=self.detail_views["Анализ игры"])
-        dependency_header = ttk.Frame(dependency_panel)
-        dependency_header.pack(fill="x", pady=(0, 5))
-        ttk.Label(dependency_header, text="ТАБЛИЦА ЗАВИСИМОСТЕЙ").pack(side="left")
+        dependency_panel = tk.Frame(game_tab, bg="#10172c")
+        dependency_panel.pack(fill="both", expand=True, padx=8, pady=(8, 0),
+                              before=self.detail_views["Анализ игры"])
+        dependency_header = tk.Frame(dependency_panel, bg="#10172c")
+        dependency_header.pack(fill="x", pady=(0, 6))
+        tk.Label(dependency_header, text="ТАБЛИЦА ЗАВИСИМОСТЕЙ",
+                 bg="#10172c", fg="#6ab4ff",
+                 font=("Segoe UI Semibold", 9)).pack(side="left")
         self.dependency_filter = tk.StringVar()
         filter_entry = ttk.Entry(dependency_header, textvariable=self.dependency_filter, width=28)
         filter_entry.pack(side="right")
-        ttk.Label(dependency_header, text="Поиск DLL / API:").pack(side="right", padx=(0, 6))
+        tk.Label(dependency_header, text="Поиск DLL / API:",
+                 bg="#10172c", fg="#aab8da",
+                 font=("Segoe UI", 8)).pack(side="right", padx=(0, 6))
         filter_entry.bind("<KeyRelease>", self._filter_dependency_tree)
-        tree_frame = ttk.Frame(dependency_panel)
+        tree_frame = tk.Frame(dependency_panel, bg="#10172c")
         tree_frame.pack(fill="both", expand=True)
         columns = ("module", "classification", "kind", "symbols", "resolution")
-        self.dependency_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=7)
+        self.dependency_tree = ttk.Treeview(
+            tree_frame, columns=columns, show="headings", height=7
+        )
         for column, title, width in (
             ("module", "Модуль DLL", 190), ("classification", "Класс", 170),
-            ("kind", "Импорт", 100), ("symbols", "Функции", 75), ("resolution", "Локальная сверка", 155),
+            ("kind", "Импорт", 100), ("symbols", "Функции", 75),
+            ("resolution", "Локальная сверка", 155),
         ):
             self.dependency_tree.heading(column, text=title)
-            self.dependency_tree.column(column, width=width, minwidth=60, stretch=column == "module")
-        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.dependency_tree.yview)
+            self.dependency_tree.column(
+                column, width=width, minwidth=60, stretch=column == "module"
+            )
+        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical",
+                                    command=self.dependency_tree.yview)
         self.dependency_tree.configure(yscrollcommand=tree_scroll.set)
         self.dependency_tree.pack(side="left", fill="both", expand=True)
         tree_scroll.pack(side="right", fill="y")
         self.dependency_tree.bind("<<TreeviewSelect>>", self._on_dependency_selected)
         self.dependency_rows = []
-        self.dependency_selection = tk.StringVar(value="Выберите DLL в таблице, чтобы увидеть подробности.")
-        ttk.Label(dependency_panel, textvariable=self.dependency_selection, wraplength=1000).pack(anchor="w", pady=(5, 0))
+        self.dependency_selection = tk.StringVar(
+            value="Выберите DLL в таблице, чтобы увидеть подробности."
+        )
+        tk.Label(dependency_panel, textvariable=self.dependency_selection,
+                 bg="#10172c", fg="#9eaccd", wraplength=1000,
+                 justify="left", font=("Segoe UI", 8)).pack(anchor="w", pady=(6, 0))
+
         self._set_detail("Обзор", "Запустите диагностику, чтобы получить сведения о системе.")
         self._set_detail("CPU и память", "Данные появятся после системной диагностики.")
-        self._set_detail("GPU / D3D12", "Запустите D3D12 probe для подробного отчёта.")
-        self._set_detail("Совместимость", "Каталог содержит документированные контракты платформ, а не оценку конкретной игры.")
-        self._set_detail("История", "Нажмите «История», чтобы просмотреть сохранённые диагностические снимки.")
-        console = ttk.Frame(split, style="Card.TFrame", padding=10)
-        console_header = ttk.Frame(console, style="Card.TFrame")
-        console_header.pack(fill="x", pady=(0, 7))
-        ttk.Label(console_header, text="ЖУРНАЛ РАБОТЫ / LIVE CONSOLE", style="CardTitle.TLabel").pack(side="left")
-        ttk.Label(console_header, text="INFO  •  SUCCESS  •  WARNING  •  ERROR", style="CardTitle.TLabel").pack(side="right")
-        self.console = tk.Text(console, bg="#0b111a", fg="#d7e2ef", insertbackground="white",
-                               relief="flat", wrap="word", font=("Consolas", 9), state="disabled")
-        self.console.tag_configure("INFO", foreground="#78b7ff")
-        self.console.tag_configure("SUCCESS", foreground="#62d69b")
-        self.console.tag_configure("WARNING", foreground="#f3c969")
-        self.console.tag_configure("ERROR", foreground="#ff7777")
-        scrollbar = ttk.Scrollbar(console, orient="vertical", command=self.console.yview)
+        self._set_detail("GPU / D3D12", "Выберите собранный D3D12 probe для runtime-проверки.")
+        self._set_detail(
+            "Совместимость",
+            "Каталог содержит документированные контракты платформ, а не оценку конкретной игры."
+        )
+        self._set_detail("История", "Нажмите «История», чтобы просмотреть сохранённые снимки.")
+        self._set_detail(
+            "Настройки",
+            "Orion-Core работает в режиме исследования и чтения. "
+            "Этот раздел будет расширен настройками интерфейса и поведения."
+        )
+        self._set_detail(
+            "О программе",
+            f"Orion-Core {__version__}\nGPU Compatibility Analyzer\n\n"
+            "Инструмент системной диагностики и анализа метаданных игровых файлов. "
+            "Не является эмулятором Xbox и не гарантирует совместимость игр."
+        )
+
+    def _build_console(self, parent: tk.Misc) -> None:
+        console_panel = tk.Frame(parent, bg="#090f20", height=205,
+                                 highlightthickness=1, highlightbackground="#343b76")
+        console_panel.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        console_panel.grid_propagate(False)
+        header = tk.Frame(console_panel, bg="#10172c", height=34)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+        tk.Label(header, text="▣  Консоль выполнения", bg="#10172c",
+                 fg="#dce4ff", font=("Segoe UI Semibold", 9)).pack(side="left", padx=10)
+        tk.Label(header, text="INFO   •   SUCCESS   •   WARNING   •   ERROR",
+                 bg="#10172c", fg="#8292b7",
+                 font=("Segoe UI", 8)).pack(side="left", padx=16)
+        ttk.Button(header, text="Очистить", command=self.clear_console).pack(
+            side="right", padx=(4, 8), pady=3
+        )
+        ttk.Button(header, text="Сохранить лог", command=self.save_log).pack(
+            side="right", padx=4, pady=3
+        )
+        console_body = tk.Frame(console_panel, bg="#050a14")
+        console_body.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+        self.console = tk.Text(
+            console_body, bg="#050a14", fg="#dce6ff",
+            insertbackground="#ffffff", relief="flat", wrap="word",
+            font=("Consolas", 9), state="disabled",
+            padx=8, pady=5, borderwidth=0
+        )
+        self.console.tag_configure("INFO", foreground="#58c8ff")
+        self.console.tag_configure("SUCCESS", foreground="#43ed91")
+        self.console.tag_configure("WARNING", foreground="#f4c76b")
+        self.console.tag_configure("ERROR", foreground="#ff647c")
+        self.console.tag_configure("DEFAULT", foreground="#dce6ff")
+        scrollbar = ttk.Scrollbar(console_body, orient="vertical", command=self.console.yview)
         self.console.configure(yscrollcommand=scrollbar.set)
         self.console.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        split.add(overview, weight=3)
-        split.add(console, weight=2)
-        # Keep the live event console visible on first launch instead of
-        # allowing the first pane to consume the entire window.
-        self.root.after(150, lambda: split.sashpos(0, 440))
 
-    def _set_detail(self, name: str, value: str) -> None:
+    def _build_footer(self, parent: tk.Misc) -> None:
+        footer = tk.Frame(parent, bg="#090e21", height=52,
+                          highlightthickness=1, highlightbackground="#252d58")
+        footer.pack(fill="x", side="bottom")
+        footer.pack_propagate(False)
+        self.footer_state_var = tk.StringVar(value="Анализ ещё не запускался")
+        tk.Label(footer, text="●", bg="#090e21", fg="#18e58a",
+                 font=("Segoe UI", 13)).pack(side="left", padx=(14, 6))
+        tk.Label(footer, textvariable=self.status, bg="#090e21",
+                 fg="#aebbe0", font=("Segoe UI", 9)).pack(side="left")
+        tk.Label(footer, textvariable=self.footer_state_var, bg="#090e21",
+                 fg="#7f8fb4", font=("Segoe UI", 8)).pack(side="left", padx=(16, 0))
+        ttk.Button(footer, text="Экспорт отчёта",
+                   command=self.export_report).pack(side="right", padx=10, pady=7)
+        self.scan_button = ttk.Button(
+            footer, text="▶  Запустить проверку",
+            style="Accent.TButton", command=self.start_scan
+        )
+        self.scan_button.pack(side="right", padx=4, pady=7)
+
+    def _navigate(self, destination: str) -> None:
+        """Switch between the home dashboard and the existing detailed report views."""
+        routes = {
+            "GPU": "GPU / D3D12",
+            "DirectX 12": "GPU / D3D12",
+            "Шейдеры": "Анализ игры",
+            "Текстуры": "Анализ игры",
+            "Конвейер": "GPU / D3D12",
+            "Совместимость": "Совместимость",
+            "Отчёт": "Обзор",
+            "Настройки": "Настройки",
+            "О программе": "О программе",
+        }
+        for name, button in self.nav_buttons.items():
+            selected = name == destination
+            button.configure(
+                bg="#28146c" if selected else "#0b1025",
+                fg="#ffffff" if selected else "#c4cce7",
+                activebackground="#302078" if selected else "#17203d",
+            )
+        if destination == "Главная":
+            self.dashboard_page.tkraise()
+            return
+        tab_name = routes.get(destination, "Обзор")
+        self._show_details(tab_name, update_nav=False)
+
+    def _show_details(self, tab_name: str, update_nav: bool = True) -> None:
+        self.details_page.tkraise()
+        if tab_name in self.detail_views:
+            tabs = self.detail_notebook.tabs()
+            index = list(self.detail_views).index(tab_name)
+            if index < len(tabs):
+                self.detail_notebook.select(tabs[index])
+        if update_nav:
+            tab_to_nav = {
+                "Анализ игры": "Шейдеры",
+                "GPU / D3D12": "GPU",
+                "Обзор": "Отчёт",
+            }
+            nav_name = tab_to_nav.get(tab_name)
+            if nav_name and nav_name in self.nav_buttons:
+                self._navigate(nav_name)
+
+    def _set_stage(self, index: int, state: str, detail: str = "") -> None:
+        if not 0 <= index < len(self.stage_vars):
+            return
+        configs = {
+            "complete": ("✓", 100, "#21e98b", "Готово"),
+            "warning": ("!", 50, "#f3c56b", "Частично"),
+            "running": ("◌", 35, "#59b5ff", "Выполняется"),
+            "failed": ("×", 0, "#ff647c", "Ошибка"),
+            "pending": ("○", 0, "#687697", "Ожидает"),
+        }
+        icon, value, color, label = configs.get(state, configs["pending"])
+        self.stage_icons[index].configure(text=icon, fg=color)
+        self.stage_bars[index].configure(value=value)
+        self.stage_vars[index].set(detail or label)
+        self.stage_details[index].configure(fg=color)
+
+        def _set_detail(self, name: str, value: str) -> None:
         widget = self.detail_views[name]
         widget.configure(state="normal")
         widget.delete("1.0", "end")
