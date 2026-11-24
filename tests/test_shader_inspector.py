@@ -47,7 +47,7 @@ def test_rejects_bad_chunk_offset_and_non_dxbc_data():
     with pytest.raises(ShaderFormatError):
         inspect_shader_bytes(bytes(malformed))
 
-def test_inspects_spirv_header_without_parsing_instruction_stream():
+def test_inspects_spirv_header_and_empty_instruction_stream():
     from orion_core.shader_inspector import inspect_spirv_bytes
 
     data = struct.pack("<5I", 0x07230203, 0x00010600, 7, 128, 0)
