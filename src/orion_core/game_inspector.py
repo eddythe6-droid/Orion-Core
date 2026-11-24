@@ -18,6 +18,7 @@ from .stfs import inspect_stfs, inspect_svod_directory, STFSError
 from .xex import inspect_xex, XEXError
 from .scarlett import inspect_scarlett_pe
 from .dependency_analysis import build_dependency_report
+from .import_resolver import build_local_export_index, resolve_imports_against_local_files
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -237,6 +238,13 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         raise GameInspectionError("path is neither a regular file nor a directory")
 
     records.sort(key=lambda item: item["path"].casefold())
+    # Resolve only against PE files already inventoried in this same folder.
+    local_export_index = build_local_export_index(records)
+    for record in records:
+        pe = record.get("pe_analysis")
+        dependencies = record.get("dependency_analysis")
+        if pe and pe.get("valid_pe_structure") and dependencies is not None:
+            dependencies["local_resolution"] = resolve_imports_against_local_files(pe, local_export_index)
     is_archive = target.is_file() and zipfile.is_zipfile(target)
     return {
         "schema_version": INSPECTOR_SCHEMA_VERSION,
