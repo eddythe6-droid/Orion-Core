@@ -343,7 +343,7 @@ class OrionDashboard:
         for item in self.dependency_tree.get_children():
             self.dependency_tree.delete(item)
         for row in self.dependency_rows:
-            haystack = " ".join(str(value) for value in row["values"]).casefold()
+            haystack = (" ".join(str(value) for value in row["values"]) + " " + row["detail"]).casefold()
             if not query or query in haystack:
                 self.dependency_tree.insert("", "end", iid=row["iid"], values=row["values"])
 
@@ -382,6 +382,9 @@ class OrionDashboard:
                     details.append(f"Файл-кандидат: {match['candidate_path']}")
                 if known:
                     details.append("Известные Win32 API семейства: " + ", ".join(sorted({x.get("family", "") for x in known})))
+                imported_names = [item.get("name", "") for item in module.get("symbols", []) if item.get("kind") == "name"]
+                if imported_names:
+                    details.append("Импортируемые функции: " + ", ".join(imported_names))
                 details.append("Маркировка Win32 API не означает эквивалентность Xbox API.")
                 iid = f"dep_{len(self.dependency_rows)}"
                 self.dependency_rows.append({"iid": iid, "values": (
