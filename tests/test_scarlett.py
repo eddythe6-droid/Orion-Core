@@ -46,3 +46,27 @@ def test_x64_pe_without_gdk_hints_is_not_called_scarlett(tmp_path):
     make_pe(path)
     result = inspect_scarlett_pe(path)
     assert result["assessment"] == "x64_pe_candidate_no_specific_gdk_imports"
+
+
+
+def test_reports_xbox_series_delay_load_dependency_evidence(tmp_path):
+    path = tmp_path / "delayed.exe"
+    make_pe(path)
+    data = bytearray(path.read_bytes())
+    opt = 0x98
+    struct.pack_into("<II", data, opt + 112 + 13 * 8, 0x1000, 64)
+    struct.pack_into("<IIIIIIII", data, 0x200, 1, 0x1080, 0, 0, 0, 0, 0, 0)
+    data[0x280:0x288] = b"xmem.dll\x00"
+    path.write_bytes(data)
+
+    result = inspect_scarlett_pe(path)
+    assert result["assessment"] == "xbox_series_gdk_candidate"
+    assert result["delay_load_module_count"] == 1
+    assert result["module_evidence"] == [{
+        "module": "xmem.dll",
+        "category": "xbox_memory_api",
+        "load_kind": "delay_load_import",
+        "imported_symbol_count": 0,
+        "imported_symbols": [],
+        "symbol_inventory_truncated": False,
+    }]
