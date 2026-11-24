@@ -1014,9 +1014,6 @@ class OrionDashboard:
         self._scan_success = False
         self.report = None
         self.gpu_report = None
-        self.game_inspection_report = None
-        for index in range(len(self.stage_vars)):
-            self._set_stage(index, "pending")
         self.dx12_summary_var.set("Не проверено")
         self.dx12_detail_var.set("D3D12 probe не запускался")
         self.gpu_api_var.set("API: не проверено")
@@ -1031,8 +1028,6 @@ class OrionDashboard:
         self.status.set("Выполняется диагностика…")
         self.header_status.set("СБОР ДАННЫХ")
         self.footer_state_var.set("Выполняется системная инвентаризация")
-        self._set_stage(0, "running", "Сбор данных")
-        self._set_stage(1, "running", "Windows CIM")
         self.overview_text.set("Сбор системной информации. Смотрите подробные этапы в консоли.")
         self._log("INFO", "Запрошен запуск read-only диагностики.")
         self.worker = threading.Thread(target=self._scan_worker, daemon=True)
@@ -1200,12 +1195,10 @@ class OrionDashboard:
             "Каталог платформ описывает документированные API-контракты Windows PC и Xbox. "
             "Он не подтверждает совместимость конкретной игры, её бинарного файла или аппаратной конфигурации."
         )
-        self._set_stage(0, "complete", "Системная информация собрана")
-        if win.get("supported"):
-            self._set_stage(1, "complete", "Готово")
-        else:
-            self._set_stage(1, "warning", "Нет доступа")
-        self.footer_state_var.set("Системный отчёт сформирован; игровые и GPU-тесты ещё не запускались")
+        self.pc_summary_var.set(
+            f"ПК: {os_label} · CPU: {cpu} · GPU: {self.card_values['gpu'].get()} · RAM: {self.card_values['ram'].get()}"
+        )
+        self.footer_state_var.set("Системная инвентаризация завершена; совместимость игры не оценивалась")
         self.header_status.set("СИСТЕМА ПРОВЕРЕНА")
         self._log(
             "SUCCESS",
@@ -1225,8 +1218,7 @@ class OrionDashboard:
             self.verdict_var.set("Недостаточно данных")
             self.verdict_note_var.set("D3D12 probe не подтвердил создание аппаратного устройства")
             self.probe_state_var.set("D3D12 runtime: аппаратный адаптер не прошёл проверку")
-            self._set_stage(2, "warning", "Device не создан")
-            self._set_stage(5, "warning", "Не подтверждено")
+            self._set_stage(5, "warning", "Device не создан")
             self.metric_vars["feature"].set("Нет аппаратного device")
             self.metric_vars["vram"].set("Нет данных")
             self._log("WARNING", "D3D12 probe не подтвердил аппаратное устройство.")
@@ -1265,12 +1257,16 @@ class OrionDashboard:
             f"GPU runtime smoke tests: {passed}/{len(tests)} успешно; ошибок: {failed}. "
             "Это не игровой бенчмарк."
         )
-        self._set_stage(2, "complete", f"FL {feature}")
-        self._set_stage(5, "complete" if failed == 0 and passed == len(tests) else "warning",
-                        f"GPU smoke tests: {passed}/{len(tests)}")
+        self._set_stage(
+            5, "complete" if failed == 0 and passed == len(tests) else "warning",
+            f"GPU tests: {passed}/{len(tests)}"
+        )
         self.verdict_var.set("D3D12 runtime проверен")
         self.verdict_note_var.set("Это результат аппаратной проверки API, а не вердикт о совместимости Xbox-игр")
-        self.footer_state_var.set("Аппаратный D3D12 probe обработан; совместимость игр не устанавливается")
+        self.footer_state_var.set("D3D12 runtime проверен; совместимость конкретной игры не установлена")
+        self.pc_summary_var.set(
+            f"ПК: {self.card_values['gpu'].get()} · D3D12 device создан · Feature Level {feature}"
+        )
         self.header_status.set("D3D12 ПРОВЕРЕН")
         self._log("SUCCESS", f"D3D12 device: {adapter.get('name', 'GPU')}, Feature Level {feature}; smoke tests {passed}/{len(tests)}.")
 
