@@ -73,13 +73,15 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Include native GPU probe data in the combined diagnostic JSON export
 - [x] Stream native `[ORION_PROGRESS]` events from standard error into the live console
 - [ ] Add dedicated GPU, memory, CPU, evidence, and compatibility views
+- [x] Add guided Game Inspector workspace with file/folder picker, asynchronous analysis, PE dependency/export summary and JSON export
 - [ ] Package a Windows desktop build and validate on physical hardware
 
 ## Game-file research
 - [x] Read-only directory/file inventory with basic signature detection
 - [x] Metadata-only ZIP member listing without extraction
 - [x] Optional bounded SHA-256 hashing and JSON inspection reports
-- [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser\n- [x] Add separate Xbox Series / Scarlett PE32+ x64 candidate assessment with conservative GDK import-name hints (not authenticity verification)
+- [x] Parse core PE headers, sections and imported DLL names with bounded read-only parser
+- [x] Parse bounded PE export tables, names, ordinals and forwarder strings\n- [x] Add separate Xbox Series / Scarlett PE32+ x64 candidate assessment with conservative GDK import-name hints (not authenticity verification)
 - [x] Research and parse public XContent/STFS metadata headers (`CON `, `LIVE`, `PIRS`) without signature/hash verification
 - [x] Identify common GOD/SVOD sibling header + `.data/DataNNNN` layout by metadata only
 - [x] Parse documented public XEX2 wrapper metadata (fixed header, optional-header directory, entry point/base and execution info)
