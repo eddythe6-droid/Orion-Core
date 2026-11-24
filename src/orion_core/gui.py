@@ -19,6 +19,7 @@ from . import __version__
 from .report import collect_diagnostics_report
 from .gpu_probe import ProbeReportError, validate_probe_report
 from .history import HistoryStore, HistoryStoreError
+from .game_inspector import GameInspectionError, inspect_game_path
 
 
 class OrionDashboard:
@@ -102,12 +103,23 @@ class OrionDashboard:
         self.detail_notebook = ttk.Notebook(overview)
         self.detail_notebook.pack(fill="both", expand=True)
         self.detail_views = {}
-        for tab_name in ("Обзор", "CPU и память", "GPU / D3D12", "Совместимость", "История"):
+        for tab_name in ("Обзор", "Анализ игры", "CPU и память", "GPU / D3D12", "Совместимость", "История"):
             tab = ttk.Frame(self.detail_notebook, padding=10)
             text_view = tk.Text(tab, bg="#192535", fg="#e7eef7", insertbackground="white", relief="flat", wrap="word", font=("Segoe UI", 10), state="disabled")
             text_view.pack(fill="both", expand=True)
             self.detail_notebook.add(tab, text=tab_name)
             self.detail_views[tab_name] = text_view
+        self.game_inspection_report = None
+        self._set_detail("Анализ игры", "Выберите папку игры, EXE/DLL или образ ISO/XISO. Анализ выполняется локально, только для чтения; файлы не запускаются и не распаковываются.")
+        self.game_path = tk.StringVar()
+        game_controls = ttk.Frame(self.detail_notebook.nametowidget(self.detail_notebook.tabs()[1]), padding=8)
+        game_controls.pack(fill="x", before=self.detail_views["Анализ игры"])
+        ttk.Label(game_controls, text="Файл или папка игры:").pack(side="left")
+        ttk.Entry(game_controls, textvariable=self.game_path).pack(side="left", fill="x", expand=True, padx=8)
+        ttk.Button(game_controls, text="Обзор…", command=self.choose_game_path).pack(side="left")
+        self.game_button = ttk.Button(game_controls, text="Анализировать", style="Accent.TButton", command=self.start_game_inspection)
+        self.game_button.pack(side="left", padx=(8, 0))
+        ttk.Button(game_controls, text="Экспорт JSON", command=self.export_game_report).pack(side="left", padx=8)
         self._set_detail("Обзор", "Запустите диагностику, чтобы получить сведения о системе.")
         self._set_detail("CPU и память", "Данные появятся после системной диагностики.")
         self._set_detail("GPU / D3D12", "Запустите D3D12 probe для подробного отчёта.")
@@ -194,6 +206,12 @@ class OrionDashboard:
                 elif kind == "done":
                     self.scan_button.configure(state="normal")
                     self.status.set("Готово" if self._scan_success else "Завершено с ошибкой")
+                elif kind == "game_report":
+                    self.game_inspection_report = payload
+                    self._render_game_report(payload)
+                elif kind == "game_done":
+                    self.game_button.configure(state="normal")
+                    self.status.set("Анализ игры завершён" if payload else "Анализ игры завершился с ошибкой")
                 elif kind == "gpu_report":
                     self.gpu_report = payload
                     adapters = payload.get("adapters", [])
@@ -272,6 +290,87 @@ class OrionDashboard:
         self._log("SUCCESS", f"Система: {os_info['system']} {os_info['release']}; CPU: {cpu}; GPU: {self.card_values['gpu'].get()}.")
 
 
+
+    def choose_game_path(self) -> None:
+        path = filedialog.askdirectory(title="Выберите папку игры")
+        if not path:
+            path = filedialog.askopenfilename(
+                title="Выберите EXE, DLL или образ игры",
+                filetypes=[("Поддерживаемые файлы", "*.exe *.dll *.iso *.xiso *.xex *.zip"),
+                           ("Все файлы", "*.*")],
+            )
+        if path:
+            self.game_path.set(path)
+
+    def start_game_inspection(self) -> None:
+        if self.worker and self.worker.is_alive():
+            messagebox.showinfo("Orion-Core", "Дождитесь завершения текущей операции.")
+            return
+        path = self.game_path.get().strip()
+        if not path:
+            messagebox.showinfo("Orion-Core", "Сначала выберите файл или папку игры.")
+            return
+        self.game_button.configure(state="disabled")
+        self.status.set("Выполняется анализ игры…")
+        self._set_detail("Анализ игры", "Анализ выполняется. Большие папки могут обрабатываться некоторое время.")
+        self._log("INFO", f"Начат read-only анализ игрового материала: {path}")
+        self.worker = threading.Thread(target=self._game_inspection_worker, args=(path,), daemon=True)
+        self.worker.start()
+
+    def _game_inspection_worker(self, path: str) -> None:
+        try:
+            self._emit("INFO", "Game Inspector: проверка структуры, форматов и PE-зависимостей.")
+            report = inspect_game_path(path)
+            self.events.put(("game_report", report))
+            self._emit("SUCCESS", f"Game Inspector: найдено записей файлов: {report.get('files_inspected', 0)}.")
+            self.events.put(("game_done", True))
+        except (GameInspectionError, OSError, ValueError) as exc:
+            self._emit("ERROR", f"Game Inspector: {type(exc).__name__}: {exc}")
+            self.events.put(("game_done", False))
+        except Exception as exc:
+            self._emit("ERROR", f"Game Inspector: непредвиденная ошибка {type(exc).__name__}: {exc}")
+            self.events.put(("game_done", False))
+
+    def _render_game_report(self, report: dict[str, Any]) -> None:
+        lines = [
+            f"Источник: {report.get('source_name', '—')}",
+            f"Тип: {report.get('source_kind', '—')}",
+            f"Обработано записей: {report.get('files_inspected', 0)}",
+            "",
+            "Распределение форматов:",
+        ]
+        for kind, count in report.get("type_counts", {}).items():
+            lines.append(f"  {kind}: {count}")
+        files = report.get("files", [])
+        pe_records = [item for item in files if item.get("pe_analysis")]
+        lines.extend(["", f"PE-файлов с отчётом: {len(pe_records)}"])
+        for item in pe_records:
+            pe = item.get("pe_analysis") or {}
+            deps = item.get("dependency_analysis") or {}
+            scarlett = item.get("scarlett_analysis") or {}
+            lines.extend([
+                "",
+                f"Файл: {item.get('path')}",
+                f"  Архитектура: {pe.get('architecture', 'не определена')}",
+                f"  Экспортируемых функций: {len(pe.get('exported_functions', []))}",
+                f"  Импортируемых функций: {len(pe.get('imported_functions', []))}",
+                f"  Xbox-модулей-подсказок: {deps.get('classification_counts', {}).get('xbox_platform_module_hint', 0)}",
+                f"  Оценка Scarlett: {scarlett.get('assessment', 'не определена')}",
+            ])
+            exports = pe.get("exported_functions", [])
+            for exported in exports[:30]:
+                names = ", ".join(exported.get("names", [])) or f"ordinal #{exported.get('ordinal')}"
+                forward = f" → {exported.get('forwarder')}" if exported.get("is_forwarder") else ""
+                lines.append(f"    EXPORT {names}{forward}")
+            if len(exports) > 30:
+                lines.append(f"    … ещё {len(exports) - 30} экспортов (полный список в JSON)")
+        if report.get("warnings"):
+            lines.extend(["", "Предупреждения:"] + [f"  • {warning}" for warning in report["warnings"]])
+        lines.extend(["", "Ограничения: анализ только для чтения; исполняемые файлы не запускаются.",
+                      "Наличие DLL или экспортов не доказывает совместимость с Windows."])
+        self._set_detail("Анализ игры", "\n".join(lines))
+        self.detail_notebook.select(list(self.detail_views).index("Анализ игры"))
+        self._log("SUCCESS", "Отчёт Game Inspector отображён в интерфейсе.")
 
     def save_history(self) -> None:
         """Persist the most recent completed diagnostic or native GPU report."""
@@ -399,6 +498,19 @@ class OrionDashboard:
                 Path(path).write_text("\n".join(self.log_lines) + "\n", encoding="utf-8")
             except OSError as exc:
                 messagebox.showerror("Orion-Core", f"Не удалось сохранить журнал: {exc}")
+
+    def export_game_report(self) -> None:
+        report = getattr(self, "game_inspection_report", None)
+        if not report:
+            messagebox.showinfo("Orion-Core", "Сначала выполните анализ игры.")
+            return
+        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
+        if path:
+            try:
+                Path(path).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                self._log("SUCCESS", f"Отчёт Game Inspector экспортирован: {path}")
+            except OSError as exc:
+                messagebox.showerror("Orion-Core", f"Не удалось экспортировать отчёт: {exc}")
 
     def export_report(self) -> None:
         if not self.report:
