@@ -174,3 +174,52 @@ def test_reads_named_and_forwarded_exports(tmp_path):
     assert report["exported_functions"][0]["rva"] == 0x1100
     assert report["exported_functions"][1]["is_forwarder"] is True
     assert report["exported_functions"][1]["forwarder"] == "OTHER.Func"
+
+
+
+def test_reports_pe_metadata_and_authenticode_certificate_table_framing(tmp_path):
+    path = tmp_path / "signed-shape.exe"
+    make_minimal_pe(path)
+    data = bytearray(path.read_bytes())
+    opt = 0x98
+    section = opt + 0xF0
+
+    # Mark .text as executable/readable code and leave room for the certificate table.
+    struct.pack_into("<I", data, section + 16, 0x180)
+    struct.pack_into("<I", data, section + 36, 0x60000020)
+
+    # IMAGE_DIRECTORY_ENTRY_SECURITY uses a file offset (not an RVA).
+    struct.pack_into("<II", data, opt + 112 + 4 * 8, 0x380, 16)
+    data[0x380:0x390] = struct.pack("<IHH", 12, 0x0200, 0x0002) + b"DATA" + b"\x00" * 4
+    path.write_bytes(data)
+
+    report = analyze_pe(path)
+    assert report["linker_version"] is not None
+    assert report["sections"][0]["flags"]["contains_code"] is True
+    assert report["sections"][0]["flags"]["memory_execute"] is True
+    assert report["sections"][0]["flags"]["memory_read"] is True
+    security = next(item for item in report["data_directories"] if item["name"] == "security")
+    assert security == {
+        "index": 4, "name": "security", "address_kind": "file_offset",
+        "address": 0x380, "size": 16,
+    }
+    auth = report["authenticode_metadata"]
+    assert auth["table_present"] is True
+    assert auth["parse_status"] == "records_parsed"
+    assert auth["records"][0]["certificate_type_name"] == "PKCS_SIGNED_DATA"
+    assert auth["cryptographic_signature_verified"] is False
+    assert auth["publisher_identity_verified"] is False
+
+
+def test_reports_out_of_range_authenticode_table_as_unverified_metadata(tmp_path):
+    path = tmp_path / "bad-cert-table.exe"
+    make_minimal_pe(path)
+    data = bytearray(path.read_bytes())
+    opt = 0x98
+    struct.pack_into("<II", data, opt + 112 + 4 * 8, 0x3F8, 32)
+    path.write_bytes(data)
+
+    report = analyze_pe(path)
+    assert report["authenticode_metadata"]["parse_status"] == "out_of_file_range"
+    assert any("beyond end of file" in warning for warning in report["parser_warnings"])
+    assert report["authenticode_metadata"]["authenticode_digest_verified"] is False
