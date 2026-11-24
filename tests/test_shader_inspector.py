@@ -167,7 +167,7 @@ def test_spirv_rejects_unaligned_stream_and_unterminated_metadata_strings():
 
     header = struct.pack("<5I", 0x07230203, 0x00010000, 0, 10, 0)
     with pytest.raises(ShaderFormatError, match="word-aligned"):
-        inspect_spirv_bytes(header + b"\\x01")
+        inspect_spirv_bytes(header + b"\x01")
     extension = struct.pack("<2I", (2 << 16) | 10, 0x41424344)
     with pytest.raises(ShaderFormatError, match="not terminated"):
         inspect_spirv_bytes(header + extension)
