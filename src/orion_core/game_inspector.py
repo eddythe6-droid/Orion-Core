@@ -21,6 +21,7 @@ from .dependency_analysis import build_dependency_report
 from .import_resolver import build_local_export_index, resolve_imports_against_local_files
 from .api_catalog import assess_imported_symbols
 from .graphics_dependencies import assess_graphics_dependencies
+from .shader_inspector import inspect_shader_file, ShaderFormatError
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -129,6 +130,14 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                     stfs_metadata = inspect_stfs(file_path)
                 except STFSError as exc:
                     stfs_metadata = {"valid_header": False, "error": str(exc)}
+            shader_analysis = None
+            if file_path.suffix.lower() in {".cso", ".dxil", ".dxbc"}:
+                try:
+                    shader_analysis = inspect_shader_file(file_path)
+                except (ShaderFormatError, OSError) as exc:
+                    shader_analysis = {"assessment": "unrecognized_or_malformed_shader_container",
+                                       "error": str(exc), "bytecode_validated": False,
+                                       "execution_performed": False}
             if kind == "pe_dos_header":
                 try:
                     pe_analysis = analyze_pe(file_path)
@@ -148,7 +157,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 "scarlett_analysis": scarlett_analysis,
                 "dependency_analysis": dependency_analysis,
                 "stfs_metadata": stfs_metadata,
-                "xex_metadata": xex_metadata,
+                "xex_metadata": xex_metadata,\n                "shader_analysis": shader_analysis,
             })
             counts[kind] = counts.get(kind, 0) + 1
         except OSError as exc:
