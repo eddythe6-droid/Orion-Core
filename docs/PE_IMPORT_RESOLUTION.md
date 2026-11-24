@@ -14,6 +14,6 @@ Game Inspector can compare a PE file's normal import table with export tables fr
 
 ## Important limits
 
-This is a local static cross-reference, not Windows loader emulation. It does not search Windows system directories, API-set contracts, PATH, registry search paths, transitive dependencies, runtime-loaded modules, or delay-load symbol tables. It does not follow forwarder chains. Exact name/ordinal matches do not validate ABI, calling convention, structure layout, version, security properties, or runtime behavior. A missing local DLL does not mean the operating system lacks that module.
+This is a local static cross-reference, not Windows loader emulation. It does not search Windows system directories, API-set contracts, PATH, registry search paths, transitive dependencies, or runtime-loaded modules. Delay-load module names are checked against the local inventory, but delay-load symbols are not parsed. It does not follow forwarder chains. Exact name/ordinal matches do not validate ABI, calling convention, structure layout, version, security properties, or runtime behavior. A missing local DLL does not mean the operating system lacks that module.
 
 No binary is loaded or executed, and no file is modified. The report always sets `compatibility_established` and `execution_performed` to false.
