@@ -104,7 +104,7 @@ def test_game_inspector_includes_scarlett_assessment_for_valid_pe(tmp_path):
     data = bytearray(0x400)
     data[:2] = b"MZ"
     struct.pack_into("<I", data, 0x3C, 0x80)
-    data[0x80:0x84] = b"PE\\0\\0"
+    data[0x80:0x84] = b"PE\0\0"
     struct.pack_into("<HHIIIHH", data, 0x84, 0x8664, 1, 123, 0, 0, 0xF0, 0x22)
     opt = 0x98
     struct.pack_into("<H", data, opt, 0x20B)
@@ -113,7 +113,7 @@ def test_game_inspector_includes_scarlett_assessment_for_valid_pe(tmp_path):
     struct.pack_into("<I", data, opt + 108, 16)
     struct.pack_into("<H", data, opt + 68, 3)
     sec = opt + 0xF0
-    data[sec:sec + 8] = b".text\\0\\0\\0"
+    data[sec:sec + 8] = b".text\0\0\0"
     struct.pack_into("<IIII", data, sec + 8, 0x100, 0x1000, 0x200, 0x200)
     path.write_bytes(data)
 
