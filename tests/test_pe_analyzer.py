@@ -58,3 +58,59 @@ def test_rejects_non_pe_file(tmp_path):
     path.write_bytes(b"not a PE")
     with pytest.raises(PEFormatError, match="MZ"):
         analyze_pe(path)
+
+
+
+def make_pe_with_imports(path, *, magic=0x20B, ordinal=False, missing_original=False):
+    make_minimal_pe(path, machine=0x8664 if magic == 0x20B else 0x14C, magic=magic)
+    data = bytearray(path.read_bytes())
+    opt = 0x98
+    directory_offset = 112 if magic == 0x20B else 96
+    thunk_size = 8 if magic == 0x20B else 4
+    thunk_rva = 0x1050
+    name_rva = 0x1040
+    struct.pack_into("<II", data, opt + directory_offset + 8, 0x1000, 40)
+    struct.pack_into("<IIIII", data, 0x200, 0 if missing_original else thunk_rva, 0, 0, name_rva, thunk_rva)
+    data[0x240:0x24C] = b"kernel32.dll\\0"
+    if ordinal:
+        value = (0x8000000000000000 if thunk_size == 8 else 0x80000000) | 17
+    else:
+        value = 0x1060
+    data[0x250:0x250 + thunk_size] = value.to_bytes(thunk_size, "little")
+    data[0x250 + thunk_size:0x250 + 2 * thunk_size] = b"\\0" * thunk_size
+    if not ordinal:
+        struct.pack_into("<H", data, 0x260, 7)
+        data[0x262:0x26D] = b"CreateFileW\\0"
+    path.write_bytes(data)
+
+
+def test_reads_named_import_function(tmp_path):
+    path = tmp_path / "named.exe"
+    make_pe_with_imports(path)
+    report = analyze_pe(path)
+    assert report["imported_dlls"] == ["kernel32.dll"]
+    assert report["imported_functions"][0] == {
+        "dll": "kernel32.dll", "kind": "name", "name": "CreateFileW", "hint": 7
+    }
+
+
+def test_reads_ordinal_import(tmp_path):
+    path = tmp_path / "ordinal.exe"
+    make_pe_with_imports(path, ordinal=True)
+    report = analyze_pe(path)
+    assert report["imported_functions"][0]["kind"] == "ordinal"
+    assert report["imported_functions"][0]["ordinal"] == 17
+
+
+def test_uses_first_thunk_when_original_first_thunk_is_zero(tmp_path):
+    path = tmp_path / "fallback.exe"
+    make_pe_with_imports(path, missing_original=True)
+    report = analyze_pe(path)
+    assert report["imported_functions"][0]["name"] == "CreateFileW"
+
+
+def test_reads_pe32_named_import(tmp_path):
+    path = tmp_path / "named32.exe"
+    make_pe_with_imports(path, magic=0x10B)
+    report = analyze_pe(path)
+    assert report["imported_functions"][0]["name"] == "CreateFileW"
