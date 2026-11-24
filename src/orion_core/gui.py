@@ -1273,18 +1273,23 @@ class OrionDashboard:
 
 
     def choose_game_folder(self) -> None:
-        path = filedialog.askdirectory(title="Выберите папку игры")
+        path = filedialog.askdirectory(title="Выберите папку игры или распакованный образ")
         if path:
             self.game_path.set(path)
+            self.source_path.set(path)
 
     def choose_game_file(self) -> None:
         path = filedialog.askopenfilename(
-            title="Выберите EXE, DLL или образ игры",
-            filetypes=[("Поддерживаемые файлы", "*.exe *.dll *.iso *.xiso *.xex *.zip"),
-                       ("Все файлы", "*.*")],
+            title="Выберите Xbox-образ, XContent-пакет или исполняемый файл",
+            filetypes=[
+                ("Xbox / game media", "*.iso *.xiso *.con *.live *.pirs *.xex *.xbe *.zip"),
+                ("Executable and libraries", "*.exe *.dll"),
+                ("All files", "*.*"),
+            ],
         )
         if path:
             self.game_path.set(path)
+            self.source_path.set(path)
 
     def _filter_dependency_tree(self, _event: Any = None) -> None:
         query = self.dependency_filter.get().strip().casefold()
@@ -1344,33 +1349,56 @@ class OrionDashboard:
         if self.worker and self.worker.is_alive():
             messagebox.showinfo("Orion-Core", "Дождитесь завершения текущей операции.")
             return
-        path = self.game_path.get().strip()
+        path = self.source_path.get().strip() or self.game_path.get().strip()
         if not path:
-            messagebox.showinfo("Orion-Core", "Сначала выберите файл или папку игры.")
+            messagebox.showinfo("Orion-Core", "Сначала выберите ISO/XISO, пакет или папку игры.")
             return
+        self.source_path.set(path)
+        self.game_path.set(path)
+        hash_files = bool(self.hash_files_var.get())
+        self.inspect_button.configure(state="disabled")
         self.game_button.configure(state="disabled")
         self.game_progress.start(12)
-        self.status.set("Выполняется анализ игры…")
-        self.header_status.set("АНАЛИЗ ИГРЫ")
-        self._set_stage(3, "running", "Анализ файлов")
-        self._set_stage(4, "running", "Инвентаризация")
-        self._set_detail("Анализ игры", "Анализ выполняется. Большие папки могут обрабатываться некоторое время.")
-        self._log("INFO", f"Начат read-only анализ игрового материала: {path}")
-        self.worker = threading.Thread(target=self._game_inspection_worker, args=(path,), daemon=True)
+        self.status.set("Исследуется игровой материал…")
+        self.header_status.set("GAME MEDIA ANALYSIS")
+        self.footer_state_var.set("Идёт чтение структуры и метаданных выбранного источника")
+        for index in range(len(self.stage_vars)):
+            self._set_stage(index, "pending")
+        self._set_stage(0, "running", "Проверка источника")
+        self._set_stage(1, "running", "Чтение структуры")
+        self._set_text(self.media_metadata_text, "Анализ выполняется. Большие образы и папки могут обрабатываться некоторое время.")
+        self._set_text(self.media_record_text, "Ожидание результата анализа…")
+        for key in self.media_stat_vars:
+            self.media_stat_vars[key].set("Анализируется…" if key == "format" else "—")
+        self.inventory_tree.delete(*self.inventory_tree.get_children())
+        self._log(
+            "INFO",
+            f"Начат read-only анализ игрового материала: {path}"
+            + ("; SHA-256 включён для файлов до 64 MiB." if hash_files else ".")
+        )
+        self.worker = threading.Thread(
+            target=self._game_inspection_worker, args=(path, hash_files), daemon=True
+        )
         self.worker.start()
 
-    def _game_inspection_worker(self, path: str) -> None:
+    def _game_inspection_worker(self, path: str, hash_files: bool = False) -> None:
         try:
-            self._emit("INFO", "Game Inspector: проверка структуры, форматов и PE-зависимостей.")
-            report = inspect_game_path(path)
+            self._emit("INFO", "Game Inspector: определение контейнера и формата источника.")
+            self._emit("INFO", "Game Inspector: инвентаризация записей, исполняемых файлов и ресурсов.")
+            report = inspect_game_path(path, hash_files=hash_files)
             self.events.put(("game_report", report))
-            self._emit("SUCCESS", f"Game Inspector: найдено записей файлов: {report.get('files_inspected', 0)}.")
+            self._emit(
+                "SUCCESS",
+                f"Game Inspector: найдено записей файлов: {report.get('files_inspected', 0)}."
+            )
             self.events.put(("game_done", True))
         except (GameInspectionError, OSError, ValueError) as exc:
             self._emit("ERROR", f"Game Inspector: {type(exc).__name__}: {exc}")
+            self.events.put(("game_error", f"{type(exc).__name__}: {exc}"))
             self.events.put(("game_done", False))
         except Exception as exc:
             self._emit("ERROR", f"Game Inspector: непредвиденная ошибка {type(exc).__name__}: {exc}")
+            self.events.put(("game_error", f"{type(exc).__name__}: {exc}"))
             self.events.put(("game_done", False))
 
     def _render_game_report(self, report: dict[str, Any]) -> None:
