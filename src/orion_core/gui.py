@@ -263,13 +263,9 @@ class OrionDashboard:
         return panel, body
 
     def _build_dashboard_page(self, parent: tk.Misc) -> None:
-        parent.grid_rowconfigure(1, weight=1)
+        """Build the game-first research workspace."""
         parent.grid_columnconfigure(0, weight=1)
-
-        cards = tk.Frame(parent, bg="#080d1d")
-        cards.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        for column, weight in enumerate((11, 13, 8, 12)):
-            cards.grid_columnconfigure(column, weight=weight, uniform="summary")
+        parent.grid_rowconfigure(2, weight=1)
 
         self.card_values: dict[str, tk.StringVar] = {
             "os": tk.StringVar(value="Не проверено"),
@@ -286,99 +282,9 @@ class OrionDashboard:
         self.gpu_api_var = tk.StringVar(value="API: не проверено")
         self.dx12_summary_var = tk.StringVar(value="Не проверено")
         self.dx12_detail_var = tk.StringVar(value="D3D12 probe не запускался")
-        self.verdict_var = tk.StringVar(value="Совместимость не определена")
-        self.verdict_note_var = tk.StringVar(value="Сначала соберите данные системы")
-        
-        system_panel, system_body = self._panel(cards, "Информация о системе", "▣")
-        system_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
-        for label, variable in (("ОС:", self.system_os_var), ("Процессор:", self.system_cpu_var),
-                                ("ОЗУ:", self.system_ram_var)):
-            line = tk.Frame(system_body, bg="#10172c")
-            line.pack(fill="x", pady=3)
-            tk.Label(line, text=label, width=11, anchor="w", bg="#10172c",
-                     fg="#8997bc", font=("Segoe UI", 9)).pack(side="left")
-            tk.Label(line, textvariable=variable, anchor="w", bg="#10172c",
-                     fg="#f0f3ff", font=("Segoe UI Semibold", 9),
-                     wraplength=245, justify="left").pack(side="left", fill="x", expand=True)
-
-        gpu_panel, gpu_body = self._panel(cards, "Видеокарта", "▦")
-        gpu_panel.grid(row=0, column=1, sticky="nsew", padx=3)
-        tk.Label(gpu_body, textvariable=self.gpu_name_var, bg="#10172c",
-                 fg="#f3f5ff", font=("Segoe UI Semibold", 13),
-                 wraplength=260).pack(anchor="w", pady=(2, 5))
-        for variable in (self.gpu_memory_var, self.gpu_driver_var, self.gpu_api_var):
-            tk.Label(gpu_body, textvariable=variable, bg="#10172c", fg="#aebbdc",
-                     font=("Segoe UI", 8)).pack(anchor="w", pady=1)
-
-        dx_panel, dx_body = self._panel(cards, "DirectX 12", "⊗")
-        dx_panel.grid(row=0, column=2, sticky="nsew", padx=3)
-        tk.Label(dx_body, textvariable=self.dx12_summary_var, bg="#10172c",
-                 fg="#e4eaff", font=("Segoe UI Semibold", 13),
-                 justify="center").pack(fill="x", pady=(8, 3))
-        tk.Label(dx_body, textvariable=self.dx12_detail_var, bg="#10172c",
-                 fg="#91a5c8", font=("Segoe UI", 8), justify="center",
-                 wraplength=180).pack(fill="x")
-
-        verdict_panel, verdict_body = self._panel(cards, "Общий вердикт", "⬡")
-        verdict_panel.grid(row=0, column=3, sticky="nsew", padx=(6, 0))
-        self.verdict_box = tk.Frame(verdict_body, bg="#172039",
-                                    highlightthickness=1, highlightbackground="#5360a0")
-        self.verdict_box.pack(fill="both", expand=True, padx=1, pady=2)
-        tk.Label(self.verdict_box, text="◈", bg="#172039", fg="#7b64ff",
-                 font=("Segoe UI Symbol", 24)).pack(side="left", padx=12)
-        verdict_text = tk.Frame(self.verdict_box, bg="#172039")
-        verdict_text.pack(side="left", fill="both", expand=True, pady=8)
-        tk.Label(verdict_text, textvariable=self.verdict_var, bg="#172039",
-                 fg="#dce4ff", font=("Segoe UI Semibold", 11),
-                 wraplength=210, justify="left").pack(anchor="w")
-        tk.Label(verdict_text, textvariable=self.verdict_note_var, bg="#172039",
-                 fg="#9eaccd", font=("Segoe UI", 8),
-                 wraplength=230, justify="left").pack(anchor="w", pady=(3, 0))
-
-        middle = tk.Frame(parent, bg="#080d1d")
-        middle.grid(row=1, column=0, sticky="nsew")
-        middle.grid_columnconfigure(0, weight=20, uniform="middle")
-        middle.grid_columnconfigure(1, weight=12, uniform="middle")
-        middle.grid_columnconfigure(2, weight=10, uniform="middle")
-        middle.grid_rowconfigure(0, weight=1)
-
-        stages_panel, stages_body = self._panel(middle, "Этапы проверки", "▥")
-        stages_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
-        stage_names = (
-            "Информация об ОС и CPU",
-            "Windows и драйверы",
-            "Устройство DirectX 12",
-            "Шейдеры и форматы",
-            "Текстуры и ресурсы",
-            "GPU pipeline smoke tests",
-        )
-        self.stage_vars: list[tk.StringVar] = []
-        self.stage_bars: list[ttk.Progressbar] = []
-        self.stage_icons: list[tk.Label] = []
-        self.stage_details: list[tk.Label] = []
-        for index, name in enumerate(stage_names):
-            row = tk.Frame(stages_body, bg="#10172c")
-            row.pack(fill="x", pady=4)
-            icon = tk.Label(row, text="○", width=2, bg="#10172c", fg="#637191",
-                            font=("Segoe UI", 13, "bold"))
-            icon.pack(side="left", padx=(2, 7))
-            self.stage_icons.append(icon)
-            tk.Label(row, text=name, width=28, anchor="w", bg="#10172c",
-                     fg="#dce4ff", font=("Segoe UI", 8)).pack(side="left")
-            bar = ttk.Progressbar(row, maximum=100, value=0,
-                                  style="Accent.Horizontal.TProgressbar")
-            bar.pack(side="left", fill="x", expand=True, padx=(6, 8), ipady=2)
-            self.stage_bars.append(bar)
-            state = tk.StringVar(value="Ожидает")
-            self.stage_vars.append(state)
-            detail = tk.Label(row, textvariable=state, width=14, anchor="e",
-                              bg="#10172c", fg="#7785a8",
-                              font=("Segoe UI", 8))
-            detail.pack(side="right", padx=(2, 1))
-            self.stage_details.append(detail)
-
-        metrics_panel, metrics_body = self._panel(middle, "Ключевые показатели", "⚙")
-        metrics_panel.grid(row=0, column=1, sticky="nsew", padx=3)
+        self.verdict_var = tk.StringVar(value="Не оценивалось")
+        self.verdict_note_var = tk.StringVar(value="Совместимость не выводится только по модели GPU")
+        self.pc_summary_var = tk.StringVar(value="ПК: диагностика ещё не запускалась")
         self.metric_vars = {
             "gpu_perf": tk.StringVar(value="Не измерялась"),
             "vram": tk.StringVar(value="Нет данных"),
@@ -386,38 +292,387 @@ class OrionDashboard:
             "ray": tk.StringVar(value="Нет данных"),
             "mesh": tk.StringVar(value="Нет данных"),
         }
-        metric_rows = (
-            ("Производительность GPU", "gpu_perf"),
-            ("Видеопамять / бюджет", "vram"),
-            ("DirectX Feature Level", "feature"),
-            ("Ray Tracing", "ray"),
-            ("Mesh Shaders", "mesh"),
-        )
-        for label, key in metric_rows:
-            line = tk.Frame(metrics_body, bg="#10172c")
-            line.pack(fill="x", pady=7)
-            tk.Label(line, text="◆", bg="#10172c", fg="#54a6ff",
-                     font=("Segoe UI", 11)).pack(side="left", padx=(2, 8))
-            text_block = tk.Frame(line, bg="#10172c")
-            text_block.pack(side="left", fill="x", expand=True)
-            tk.Label(text_block, text=label, bg="#10172c", fg="#aab8da",
-                     font=("Segoe UI", 8)).pack(anchor="w")
-            tk.Label(text_block, textvariable=self.metric_vars[key], bg="#10172c",
-                     fg="#f0f3ff", font=("Segoe UI Semibold", 9)).pack(anchor="w")
 
-        graph_panel, graph_body = self._panel(middle, "Графический тест", "▣")
-        graph_panel.grid(row=0, column=2, sticky="nsew", padx=(6, 0))
-        self.probe_canvas = tk.Canvas(graph_body, bg="#050a16", height=108,
-                                      highlightthickness=1, highlightbackground="#29375f")
-        self.probe_canvas.pack(fill="x", pady=(2, 8))
-        self.probe_canvas.bind("<Configure>", self._draw_probe_preview)
-        self.probe_state_var = tk.StringVar(value="Нативный тест не запускался")
-        tk.Label(graph_body, textvariable=self.probe_state_var, bg="#10172c",
-                 fg="#aab8da", font=("Segoe UI", 8), wraplength=230,
-                 justify="center").pack(fill="x", pady=(0, 5))
-        self.gpu_button = ttk.Button(graph_body, text="Выбрать D3D12 Probe…",
-                                     command=self.choose_gpu_probe)
-        self.gpu_button.pack(fill="x")
+        source_panel, source_body = self._panel(parent, "ИСТОЧНИК ИГРОВЫХ ДАННЫХ", "▣")
+        source_panel.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        self.source_path = tk.StringVar()
+        path_row = tk.Frame(source_body, bg="#10172c")
+        path_row.pack(fill="x")
+        self.source_entry = tk.Entry(
+            path_row, textvariable=self.source_path,
+            bg="#090f20", fg="#edf1ff", insertbackground="#ffffff",
+            relief="flat", highlightthickness=1,
+            highlightbackground="#363d72", highlightcolor="#8a5cff",
+            font=("Segoe UI", 10)
+        )
+        self.source_entry.pack(side="left", fill="x", expand=True, ipady=8, padx=(0, 8))
+        ttk.Button(path_row, text="Файл / образ…", command=self.choose_game_file).pack(side="left", padx=3)
+        ttk.Button(path_row, text="Папка игры…", command=self.choose_game_folder).pack(side="left", padx=3)
+        self.inspect_button = ttk.Button(
+            path_row, text="▶  ИССЛЕДОВАТЬ",
+            style="Accent.TButton", command=self.start_game_inspection
+        )
+        self.inspect_button.pack(side="left", padx=(8, 0))
+
+        options_row = tk.Frame(source_body, bg="#10172c")
+        options_row.pack(fill="x", pady=(6, 0))
+        self.hash_files_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            options_row, text="SHA-256 для обычных файлов до 64 MiB",
+            variable=self.hash_files_var,
+            bg="#10172c", fg="#9fafd3", activebackground="#10172c",
+            activeforeground="#ffffff", selectcolor="#171f3a",
+            highlightthickness=0, bd=0, font=("Segoe UI", 8)
+        ).pack(side="left")
+        tk.Label(
+            options_row, text="Только чтение · без распаковки · без запуска файлов",
+            bg="#10172c", fg="#7182a9", font=("Segoe UI", 8)
+        ).pack(side="right")
+
+        stats = tk.Frame(parent, bg="#080d1d")
+        stats.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        for col in range(5):
+            stats.grid_columnconfigure(col, weight=1, uniform="media_stats")
+        self.media_stat_vars = {
+            "format": tk.StringVar(value="Источник не выбран"),
+            "files": tk.StringVar(value="—"),
+            "executables": tk.StringVar(value="—"),
+            "shaders": tk.StringVar(value="—"),
+            "warnings": tk.StringVar(value="—"),
+        }
+        stat_specs = (
+            ("ФОРМАТ ИСТОЧНИКА", "format", "▣", "#62b6ff"),
+            ("ЗАПИСЕЙ В ИНВЕНТАРЕ", "files", "▤", "#70d9ff"),
+            ("EXE / XEX / DLL", "executables", "⌘", "#b08aff"),
+            ("SHADER-МЕТАДАННЫЕ", "shaders", "✣", "#58dfb0"),
+            ("ПРЕДУПРЕЖДЕНИЯ", "warnings", "!", "#f1c76d"),
+        )
+        for column, (caption, key, symbol, tint) in enumerate(stat_specs):
+            tile = tk.Frame(stats, bg="#10172c",
+                            highlightthickness=1, highlightbackground="#30376a")
+            tile.grid(row=0, column=column, sticky="nsew",
+                      padx=(0 if column == 0 else 4, 0 if column == 4 else 4))
+            tk.Label(tile, text=symbol, bg="#10172c", fg=tint,
+                     font=("Segoe UI Symbol", 16, "bold")).pack(anchor="w", padx=10, pady=(7, 0))
+            tk.Label(tile, text=caption, bg="#10172c", fg="#8494ba",
+                     font=("Segoe UI Semibold", 7)).pack(anchor="w", padx=10, pady=(0, 2))
+            tk.Label(tile, textvariable=self.media_stat_vars[key], bg="#10172c",
+                     fg="#f2f4ff", font=("Segoe UI Semibold", 12),
+                     wraplength=210, justify="left").pack(anchor="w", padx=10, pady=(0, 9))
+
+        work = tk.Frame(parent, bg="#080d1d")
+        work.grid(row=2, column=0, sticky="nsew")
+        work.grid_columnconfigure(0, weight=7, uniform="research")
+        work.grid_columnconfigure(1, weight=4, uniform="research")
+        work.grid_rowconfigure(0, weight=1)
+
+        inventory_panel, inventory_body = self._panel(work, "СТРУКТУРА ИГРОВОГО МАТЕРИАЛА", "▤")
+        inventory_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        inventory_toolbar = tk.Frame(inventory_body, bg="#10172c")
+        inventory_toolbar.pack(fill="x", pady=(0, 6))
+        tk.Label(inventory_toolbar, text="Найденные файлы и записи контейнера",
+                 bg="#10172c", fg="#9eadd0", font=("Segoe UI", 8)).pack(side="left")
+        self.inventory_filter = tk.StringVar()
+        filter_entry = tk.Entry(
+            inventory_toolbar, textvariable=self.inventory_filter, width=24,
+            bg="#090f20", fg="#edf1ff", insertbackground="#ffffff",
+            relief="flat", highlightthickness=1, highlightbackground="#30376a",
+            font=("Segoe UI", 8)
+        )
+        filter_entry.pack(side="right", ipady=4)
+        filter_entry.bind("<KeyRelease>", self._filter_media_inventory)
+
+        tree_frame = tk.Frame(inventory_body, bg="#10172c")
+        tree_frame.pack(fill="both", expand=True)
+        columns = ("path", "type", "size", "evidence")
+        self.inventory_tree = ttk.Treeview(
+            tree_frame, columns=columns, show="headings", selectmode="browse"
+        )
+        for column, title, width in (
+            ("path", "Путь / имя", 330), ("type", "Обнаруженный тип", 165),
+            ("size", "Размер", 92), ("evidence", "Анализ", 150),
+        ):
+            self.inventory_tree.heading(column, text=title)
+            self.inventory_tree.column(column, width=width, minwidth=70,
+                                       stretch=column == "path", anchor="w")
+        self.inventory_tree.tag_configure("candidate", foreground="#b9a0ff")
+        self.inventory_tree.tag_configure("warning", foreground="#f2c66e")
+        self.inventory_tree.tag_configure("shader", foreground="#70dfb2")
+        vertical = ttk.Scrollbar(tree_frame, orient="vertical",
+                                 command=self.inventory_tree.yview)
+        horizontal = ttk.Scrollbar(inventory_body, orient="horizontal",
+                                   command=self.inventory_tree.xview)
+        self.inventory_tree.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
+        self.inventory_tree.pack(side="left", fill="both", expand=True)
+        vertical.pack(side="right", fill="y")
+        horizontal.pack(fill="x")
+        self.inventory_tree.bind("<<TreeviewSelect>>", self._on_inventory_selected)
+        self.inventory_rows: list[dict[str, Any]] = []
+        self.inventory_row_by_id: dict[str, dict[str, Any]] = {}
+
+        right = tk.Frame(work, bg="#080d1d")
+        right.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(0, weight=3)
+        right.grid_rowconfigure(1, weight=2)
+        right.grid_rowconfigure(2, weight=1)
+
+        metadata_panel, metadata_body = self._panel(right, "МЕТАДАННЫЕ КОНТЕЙНЕРА", "◈")
+        metadata_panel.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
+        self.media_metadata_text = tk.Text(
+            metadata_body, bg="#090f20", fg="#cbd6f2",
+            insertbackground="#ffffff", relief="flat", wrap="word",
+            font=("Consolas", 8), padx=8, pady=7, state="disabled"
+        )
+        self.media_metadata_text.pack(fill="both", expand=True)
+
+        record_panel, record_body = self._panel(right, "ВЫБРАННЫЙ ЭЛЕМЕНТ", "⌕")
+        record_panel.grid(row=1, column=0, sticky="nsew", pady=6)
+        self.media_record_text = tk.Text(
+            record_body, bg="#090f20", fg="#cbd6f2",
+            insertbackground="#ffffff", relief="flat", wrap="word",
+            font=("Consolas", 8), padx=8, pady=7, state="disabled"
+        )
+        self.media_record_text.pack(fill="both", expand=True)
+
+        pc_panel, pc_body = self._panel(right, "СОСТОЯНИЕ ЦЕЛЕВОГО ПК", "▣")
+        pc_panel.grid(row=2, column=0, sticky="nsew", pady=(6, 0))
+        tk.Label(pc_body, textvariable=self.pc_summary_var, bg="#10172c",
+                 fg="#aebbe0", font=("Segoe UI", 8), wraplength=360,
+                 justify="left").pack(anchor="w", fill="x")
+        ttk.Button(pc_body, text="Открыть диагностику ПК",
+                   command=lambda: self._show_details("CPU и память", update_nav=True)).pack(
+                       anchor="e", pady=(5, 0)
+                   )
+
+        self._set_text(self.media_metadata_text,
+                       "Выберите ISO/XISO, XEX/EXE, XContent-пакет или папку игры. "
+                       "Здесь появятся сведения о найденном контейнере и границах анализа.")
+        self._set_text(self.media_record_text,
+                       "Выберите запись в таблице, чтобы посмотреть доступные метаданные.")
+
+    def _set_text(self, widget: tk.Text, value: str) -> None:
+        widget.configure(state="normal")
+        widget.delete("1.0", "end")
+        widget.insert("1.0", value)
+        widget.configure(state="disabled")
+
+    @staticmethod
+    def _format_size(size: Any) -> str:
+        if not isinstance(size, (int, float)) or size < 0:
+            return "—"
+        value = float(size)
+        for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+            if value < 1024 or unit == "TiB":
+                return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} B"
+            value /= 1024
+        return "—"
+
+    def _populate_media_inventory(self, report: dict[str, Any]) -> None:
+        self.inventory_rows = list(report.get("files", []))
+        self.inventory_row_by_id.clear()
+        self.inventory_tree.delete(*self.inventory_tree.get_children())
+        for index, record in enumerate(self.inventory_rows):
+            row_id = f"media_{index}"
+            self.inventory_row_by_id[row_id] = record
+            kind = str(record.get("detected_type", "unknown"))
+            evidence = "Только инвентарь"
+            tags: tuple[str, ...] = ()
+            if record.get("pe_analysis") is not None:
+                pe = record["pe_analysis"]
+                evidence = "PE: заголовки прочитаны" if pe.get("valid_pe_structure") else "PE: ошибка структуры"
+                tags = ("candidate",) if pe.get("valid_pe_structure") else ("warning",)
+            elif record.get("xex_metadata") is not None:
+                evidence, tags = "XEX2: метаданные", ("candidate",)
+            elif record.get("stfs_metadata") is not None:
+                evidence, tags = "XContent: метаданные", ("candidate",)
+            elif record.get("shader_analysis") is not None:
+                evidence, tags = "Shader: метаданные", ("shader",)
+            elif record.get("archive_member"):
+                evidence = "Запись ZIP"
+            elif record.get("xdvdfs_member"):
+                evidence = "Запись XDVDFS"
+            elif record.get("iso9660_member"):
+                evidence = "Запись ISO9660"
+            self.inventory_tree.insert(
+                "", "end", iid=row_id,
+                values=(record.get("path", "—"), kind,
+                        self._format_size(record.get("size_bytes")), evidence),
+                tags=tags
+            )
+        if self.inventory_rows:
+            children = self.inventory_tree.get_children()
+            if children:
+                self.inventory_tree.selection_set(children[0])
+                self._on_inventory_selected()
+        else:
+            self._set_text(self.media_record_text,
+                           "Парсер не вернул файловых записей. Смотрите предупреждения и метаданные контейнера.")
+
+    def _filter_media_inventory(self, _event: Any = None) -> None:
+        query = self.inventory_filter.get().strip().casefold()
+        self.inventory_tree.delete(*self.inventory_tree.get_children())
+        for index, record in enumerate(self.inventory_rows):
+            path = str(record.get("path", ""))
+            kind = str(record.get("detected_type", "unknown"))
+            evidence = " ".join(str(record.get(key) or "") for key in (
+                "pe_analysis", "xex_metadata", "stfs_metadata", "shader_analysis"
+            ))
+            if query and query not in (path + " " + kind + " " + evidence).casefold():
+                continue
+            row_id = f"media_{index}"
+            pe = record.get("pe_analysis")
+            tag = ("candidate" if pe.get("valid_pe_structure") else "warning") if isinstance(pe, dict) else (
+                "shader" if record.get("shader_analysis") is not None else ""
+            )
+            self.inventory_tree.insert(
+                "", "end", iid=row_id,
+                values=(
+                    path, kind, self._format_size(record.get("size_bytes")),
+                    "Метаданные доступны" if any(record.get(key) is not None for key in (
+                        "pe_analysis", "xex_metadata", "stfs_metadata", "shader_analysis"
+                    )) else "Инвентарь"
+                ),
+                tags=(tag,) if tag else ()
+            )
+
+    def _on_inventory_selected(self, _event: Any = None) -> None:
+        selected = self.inventory_tree.selection()
+        if not selected:
+            return
+        record = self.inventory_row_by_id.get(selected[0])
+        if record is None:
+            return
+        details = [
+            f"Путь: {record.get('path', '—')}",
+            f"Тип: {record.get('detected_type', 'unknown')}",
+            f"Размер: {self._format_size(record.get('size_bytes'))}",
+        ]
+        if record.get("sha256"):
+            details.append(f"SHA-256: {record['sha256']}")
+        for key, label in (
+            ("pe_analysis", "PE"),
+            ("scarlett_analysis", "Xbox Series / GDK hint"),
+            ("xex_metadata", "XEX2"),
+            ("stfs_metadata", "XContent"),
+            ("shader_analysis", "Shader"),
+            ("dependency_analysis", "Dependencies"),
+        ):
+            value = record.get(key)
+            if value is not None:
+                details.extend(["", f"{label}:", json.dumps(value, ensure_ascii=False, indent=2)[:9000]])
+        if record.get("archive_member"):
+            details.append("Источник: имя и размеры записи ZIP; содержимое не извлекалось.")
+        if record.get("xdvdfs_member"):
+            details.append(f"XDVDFS extent sector: {record.get('extent_sector')}; payload не читался.")
+        if record.get("iso9660_member"):
+            details.append(f"ISO9660 extent sector: {record.get('extent_sector')}; payload не читался.")
+        self._set_text(self.media_record_text, "\n".join(details))
+
+    def _render_media_summary(self, report: dict[str, Any]) -> None:
+        kind_labels = {
+            "directory": "Папка игры",
+            "xdvdfs": "Xbox XDVDFS / XISO",
+            "iso9660": "ISO9660",
+            "xcontent_package": "Xbox 360 XContent",
+            "zip_archive": "ZIP-архив",
+            "file": "Отдельный файл",
+        }
+        source_kind = report.get("source_kind", "unknown")
+        self.media_stat_vars["format"].set(kind_labels.get(source_kind, str(source_kind)))
+        self.media_stat_vars["files"].set(str(report.get("files_inspected", 0)))
+        files = report.get("files", [])
+        executable_count = sum(
+            1 for item in files
+            if item.get("pe_analysis") is not None or item.get("xex_metadata") is not None
+            or item.get("detected_type") in (
+                "pe_dos_header", "xex2", "xbox_360_executable_extension",
+                "windows_executable_extension", "windows_library_extension"
+            )
+        )
+        shader_summary = report.get("shader_summary", {})
+        self.media_stat_vars["executables"].set(str(executable_count))
+        self.media_stat_vars["shaders"].set(str(shader_summary.get("files_with_shader_analysis", 0)))
+        warnings = report.get("warnings", [])
+        self.media_stat_vars["warnings"].set(str(len(warnings)))
+
+        sections = [
+            f"Источник: {report.get('source_name', '—')}",
+            f"Класс: {kind_labels.get(source_kind, source_kind)}",
+            f"Записей: {report.get('files_inspected', 0)}",
+            "",
+            "РАСПРЕДЕЛЕНИЕ ТИПОВ:"
+        ]
+        for name, count in report.get("type_counts", {}).items():
+            sections.append(f"  {name}: {count}")
+
+        xdvdfs = report.get("xdvdfs")
+        if xdvdfs:
+            sections.extend([
+                "", "XDVDFS:",
+                f"  Разметка: {xdvdfs.get('disc_layout', 'не определена')}",
+                f"  Смещение раздела: {xdvdfs.get('volume_base_offset', 0):#x}",
+                f"  Сектор дескриптора: {xdvdfs.get('descriptor_sector', '—')}",
+                f"  Записей: {xdvdfs.get('entries_count', 0)}",
+                f"  Root directory: sector {xdvdfs.get('root_directory_sector', '—')}, "
+                f"{xdvdfs.get('root_directory_size_bytes', 0)} bytes",
+            ])
+        iso = report.get("iso9660")
+        if iso:
+            sections.extend(["", "ISO9660:", json.dumps(iso, ensure_ascii=False, indent=2)[:4500]])
+
+        stfs = report.get("stfs")
+        if stfs:
+            title_id = stfs.get("title_id")
+            sections.extend([
+                "", "XCONTENT / STFS:",
+                f"  Подпись: {stfs.get('signature_type', '—')}",
+                f"  Контейнер: {stfs.get('container_format', '—')}",
+                f"  Тип содержимого: {stfs.get('content_type_name', 'unknown')}",
+                f"  Title ID: {title_id:08X}" if isinstance(title_id, int) else "  Title ID: —",
+                f"  Имя: {stfs.get('display_name') or stfs.get('title_name') or '—'}",
+                f"  Издатель: {stfs.get('publisher_name') or '—'}",
+                "  Подпись и хеш-таблицы не проверялись.",
+            ])
+        svod = report.get("svod")
+        if svod:
+            sections.extend(["", f"SVOD/GOD layout candidates: {len(svod.get('containers', []))}"])
+            for item in svod.get("containers", []):
+                package = item.get("package_metadata", {})
+                title_id = package.get("title_id")
+                title_text = f"{title_id:08X}" if isinstance(title_id, int) else "—"
+                sections.append(
+                    f"  {item.get('header_file')} → {item.get('data_directory')}: "
+                    f"Title ID {title_text}, data files {item.get('data_file_count_observed', 0)}"
+                )
+
+        shaders = report.get("shader_summary", {})
+        sections.extend([
+            "", "SHADER METADATA:",
+            f"  Файлов: {shaders.get('files_with_shader_analysis', 0)}",
+            f"  Форматы: {json.dumps(shaders.get('formats', {}), ensure_ascii=False)}",
+            f"  Resource bindings: {shaders.get('rdef_resource_binding_count', 0)}",
+            f"  SPIR-V entry points: {shaders.get('spirv_entry_point_count', 0)}",
+            "  Байткод и совместимость GPU не валидировались.",
+        ])
+        if warnings:
+            sections.extend(["", "ПРЕДУПРЕЖДЕНИЯ:"] + [f"  • {warning}" for warning in warnings[:30]])
+            if len(warnings) > 30:
+                sections.append(f"  … ещё {len(warnings) - 30}")
+        sections.extend([
+            "", "ОГРАНИЧЕНИЯ:",
+            "  • Анализ метаданных и структуры, без распаковки.",
+            "  • Исполняемые файлы не запускались.",
+            "  • Защищённое содержимое и DRM не обходились.",
+            "  • Совместимость и возможность PC-порта не установлены.",
+        ])
+        self._set_text(self.media_metadata_text, "\n".join(sections))
+        self._populate_media_inventory(report)
+        self._log(
+            "SUCCESS",
+            f"Game Inspector: {report.get('source_name')} — "
+            f"{report.get('files_inspected', 0)} записей, тип источника {source_kind}."
+        )
 
     def _draw_probe_preview(self, event: tk.Event | None = None) -> None:
         """Draw a responsive decorative color triangle, not a GPU benchmark result."""
