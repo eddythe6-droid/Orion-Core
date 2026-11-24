@@ -237,3 +237,20 @@ def test_rdef_marks_invalid_type_and_default_value_offsets():
     variable = report["chunks"][0]["resource_reflection"]["constant_buffers"][0]["variables"][0]
     assert variable["type_descriptor_offset_in_bounds"] is False
     assert variable["default_value_in_bounds"] is False
+
+
+@pytest.mark.parametrize(("stage_id", "expected"), [
+    (6, "library"),
+    (7, "ray_generation"),
+    (8, "intersection"),
+    (9, "any_hit"),
+    (10, "closest_hit"),
+    (11, "miss"),
+    (12, "callable"),
+    (13, "mesh"),
+    (14, "amplification"),
+])
+def test_recognizes_dxil_shader_stage_kinds(stage_id, expected):
+    token = (stage_id << 16) | (6 << 4)
+    report = inspect_shader_bytes(_container([("SHEX", struct.pack("<I", token))]))
+    assert report["shader_programs"][0]["stage"] == expected
