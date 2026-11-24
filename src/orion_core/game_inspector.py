@@ -155,8 +155,8 @@ def inspect_game_path(
                     pe_analysis = {"valid_pe_structure": False, "error": str(exc)}
                     scarlett_analysis = {"assessment": "invalid_or_unsupported_pe", "error": str(exc),
                                          "authenticity_verified": False, "execution_performed": False}
-            should_hash = hash_files and (
-                stat.st_size <= HASH_LIMIT_BYTES
+            should_hash = (
+                (hash_files and stat.st_size <= HASH_LIMIT_BYTES)
                 or (hash_large_executables and kind in {"pe_dos_header", "xex2", "xbox_stfs"})
             )
             digest = (
@@ -175,7 +175,7 @@ def inspect_game_path(
                 "sha256": digest,
                 "sha256_status": (
                     "computed" if digest else
-                    "not_requested" if not hash_files else
+                    "not_requested" if not (hash_files or hash_large_executables) else
                     "over_64_mib_limit"
                 ),
                 "pe_analysis": pe_analysis,
@@ -259,12 +259,12 @@ def inspect_game_path(
                     "detected_type": "xbox_stfs",
                     "sha256": (
                         _sha256(target, stat.st_size, allow_large=hash_large_executables)
-                        if hash_files and (stat.st_size <= HASH_LIMIT_BYTES or hash_large_executables)
+                        if (hash_files and stat.st_size <= HASH_LIMIT_BYTES) or hash_large_executables
                         else None
                     ),
                     "sha256_status": (
-                        "computed" if hash_files and (stat.st_size <= HASH_LIMIT_BYTES or hash_large_executables)
-                        else "not_requested" if not hash_files
+                        "computed" if (hash_files and stat.st_size <= HASH_LIMIT_BYTES) or hash_large_executables
+                        else "not_requested" if not (hash_files or hash_large_executables)
                         else "over_64_mib_limit"
                     ),
                     "pe_analysis": None,
