@@ -10,6 +10,7 @@ MAX_IMPORTS = 2048
 MAX_IMPORT_FUNCTIONS = 16384
 MAX_FUNCTIONS_PER_DLL = 4096
 MAX_NAME_BYTES = 260
+MAX_EXPORTS = 10000
 
 
 class PEFormatError(ValueError):
@@ -69,7 +70,9 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
             entry_point = struct.unpack_from("<I", optional, 16)[0]
             subsystem = struct.unpack_from("<H", optional, 68)[0] if len(optional) >= 70 else None
             directory_count = struct.unpack_from("<I", optional, number_offset)[0] if len(optional) >= number_offset + 4 else 0
-            import_rva = import_size = delay_import_rva = delay_import_size = 0
+            export_rva = export_size = import_rva = import_size = delay_import_rva = delay_import_size = 0
+            if directory_count > 0 and len(optional) >= directory_offset + 8:
+                export_rva, export_size = struct.unpack_from("<II", optional, directory_offset)
             if directory_count > 1 and len(optional) >= directory_offset + 16:
                 import_rva, import_size = struct.unpack_from("<II", optional, directory_offset + 8)
             if directory_count > 13 and len(optional) >= directory_offset + 14 * 8:
@@ -201,6 +204,69 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
                             delay_imports_truncated = True
                     if not terminated:
                         delay_imports_truncated = True
+ 
+            # IMAGE_DIRECTORY_ENTRY_EXPORT (0): bounded export directory inventory.
+            exported_functions: list[dict[str, Any]] = []
+            exports_truncated = False
+            export_directory_valid = False
+            if export_rva and export_size:
+                export_offset = rva_to_offset(export_rva)
+                if export_offset is None or export_size < 40:
+                    exports_truncated = True
+                else:
+                    directory = _read_at(stream, export_offset, 40, file_size)
+                    (_, _, _, _, _, ordinal_base, function_count, name_count,
+                     functions_rva, names_rva, ordinals_rva) = struct.unpack("<IIHHIIIIIII", directory)
+                    export_directory_valid = True
+                    if function_count > MAX_EXPORTS or name_count > MAX_EXPORTS:
+                        exports_truncated = True
+                    bounded_functions = min(function_count, MAX_EXPORTS)
+                    bounded_names = min(name_count, MAX_EXPORTS)
+                    functions_offset = rva_to_offset(functions_rva) if functions_rva else None
+                    names_offset = rva_to_offset(names_rva) if names_rva else None
+                    ordinals_offset = rva_to_offset(ordinals_rva) if ordinals_rva else None
+                    if bounded_functions and functions_offset is None:
+                        exports_truncated = True
+                    named_exports: dict[int, list[str]] = {}
+                    if bounded_names and (names_offset is None or ordinals_offset is None):
+                        exports_truncated = True
+                    elif names_offset is not None and ordinals_offset is not None:
+                        for index in range(bounded_names):
+                            name_ptr = int.from_bytes(_read_at(stream, names_offset + index * 4, 4, file_size), "little")
+                            ordinal_index = int.from_bytes(_read_at(stream, ordinals_offset + index * 2, 2, file_size), "little")
+                            if ordinal_index >= function_count:
+                                exports_truncated = True
+                                continue
+                            name_ptr_offset = rva_to_offset(name_ptr)
+                            if name_ptr_offset is None:
+                                exports_truncated = True
+                                continue
+                            try:
+                                export_name = _read_c_string(stream, name_ptr_offset, file_size)
+                            except PEFormatError:
+                                exports_truncated = True
+                                continue
+                            named_exports.setdefault(ordinal_index, []).append(export_name)
+                    if functions_offset is not None:
+                        for index in range(bounded_functions):
+                            function_rva = int.from_bytes(_read_at(stream, functions_offset + index * 4, 4, file_size), "little")
+                            if function_rva == 0:
+                                continue
+                            forwarder = None
+                            if export_rva <= function_rva < export_rva + export_size:
+                                forwarder_offset = rva_to_offset(function_rva)
+                                if forwarder_offset is not None:
+                                    try:
+                                        forwarder = _read_c_string(stream, forwarder_offset, file_size)
+                                    except PEFormatError:
+                                        exports_truncated = True
+                            exported_functions.append({
+                                "ordinal": ordinal_base + index,
+                                "rva": function_rva,
+                                "names": named_exports.get(index, []),
+                                "forwarder": forwarder,
+                                "is_forwarder": forwarder is not None,
+                            })
 
     except OSError as exc:
         raise PEFormatError(f"cannot read PE file: {type(exc).__name__}: {exc}") from exc
@@ -212,7 +278,10 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
         "entry_point_rva": entry_point, "subsystem": subsystem,
         "subsystem_name": subsystem_names.get(subsystem, "unknown"),
         "characteristics": characteristics, "coff_timestamp": timestamp,
-        "sections": sections, "imported_dlls": sorted(set(imports), key=str.casefold),
+        "sections": sections, "exported_functions": exported_functions,
+        "export_directory_valid": export_directory_valid,
+        "exports_truncated_or_unavailable": exports_truncated,
+        "imported_dlls": sorted(set(imports), key=str.casefold),
         "import_modules": import_modules, "imported_functions": imported_functions,
         "delay_import_modules": delay_import_modules,
         "delay_imports_truncated_or_unavailable": delay_imports_truncated,
