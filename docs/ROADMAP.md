@@ -79,7 +79,9 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Add graphics dependency assessment for D3D12/D3D11/DXGI/Vulkan/OpenGL and selected vendor modules
 - [x] Inventory shader-like and texture-like asset paths by extension with explicit evidence limits\n- [x] Parse bounded DXBC container/chunk metadata and SHDR/SHEX shader-model tokens
 - [x] Identify shader binaries by magic and report extension/format mismatches
-- [x] Recognize bounded SPIR-V module headers and summarize shader formats/stages in JSON reports\n- [x] Extract basic DXIL program-header fields without validating bitcode
+- [x] Recognize bounded SPIR-V module headers and summarize shader formats/stages in JSON reports
+- [x] Parse common DXBC RDEF resource-binding records with strict table and string bounds
+- [x] Include RDEF resource counts and resource-type summaries in Game Inspector JSON\n- [x] Extract basic DXIL program-header fields without validating bitcode
 - [x] Add searchable dependency table, selection details, separate file/folder pickers and analysis progress indicator
 - [x] Add guided Game Inspector workspace with file/folder picker, asynchronous analysis, PE dependency/export summary and JSON export
 - [ ] Package a Windows desktop build and validate on physical hardware
