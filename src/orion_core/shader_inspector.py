@@ -51,7 +51,7 @@ def _inspect_rdef(payload: bytes) -> dict[str, Any]:
     if resource_count > 16384:
         return {"assessment": "resource_count_exceeds_parser_limit", "resources": []}
     table_end = resource_offset + resource_count * 32
-    if resource_offset < 28 or table_end > len(payload):
+    if (resource_count and resource_offset < 28) or table_end > len(payload):
         return {"assessment": "resource_binding_table_out_of_bounds", "resources": []}
     resources = []
     for index in range(resource_count):
