@@ -55,7 +55,8 @@ def test_inspects_spirv_header_and_empty_instruction_stream():
     assert report["format"] == "spirv"
     assert report["version"] == "1.6"
     assert report["id_bound"] == 128
-    assert report["instruction_stream_parsed"] is True\n    assert report["instruction_count"] == 0
+    assert report["instruction_stream_parsed"] is True
+    assert report["instruction_count"] == 0
     assert report["compatibility_established"] is False
 
 
