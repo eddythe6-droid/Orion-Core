@@ -131,7 +131,9 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 except STFSError as exc:
                     stfs_metadata = {"valid_header": False, "error": str(exc)}
             shader_analysis = None
-            if file_path.suffix.lower() in {".cso", ".dxil", ".dxbc"}:
+            shader_suffix = file_path.suffix.lower() in {".cso", ".dxil", ".dxbc", ".spv"}
+            shader_magic = header[:4] in {b"DXBC", b"\\x03\\x02#\\x07", b"\\x07#\\x02\\x03"}
+            if shader_suffix or shader_magic:
                 try:
                     shader_analysis = inspect_shader_file(file_path)
                 except (ShaderFormatError, OSError) as exc:
