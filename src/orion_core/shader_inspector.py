@@ -201,7 +201,7 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
 
 def _spirv_string(words: tuple[int, ...] | list[int], endian: str) -> str | None:
     raw = b"".join(struct.pack(endian + "I", word) for word in words)
-    terminator = raw.find(b"\\x00")
+    terminator = raw.find(b"\x00")
     if terminator < 0:
         return None
     return raw[:terminator].decode("utf-8", errors="replace")
@@ -262,11 +262,11 @@ def _inspect_spirv_instructions(data: bytes, endian: str) -> dict[str, Any]:
 
 def inspect_spirv_bytes(data: bytes) -> dict[str, Any]:
     """Inspect the fixed SPIR-V header and safely inventory selected instructions."""
-    if len(data) < 4 or data[:4] not in (b"\\x03\\x02#\\x07", b"\\x07#\\x02\\x03"):
+    if len(data) < 4 or data[:4] not in (b"\x03\x02#\x07", b"\x07#\x02\x03"):
         raise ShaderFormatError("missing SPIR-V magic")
     if len(data) < 20:
         raise ShaderFormatError("SPIR-V module header is truncated")
-    endian = "<" if data[:4] == b"\\x03\\x02#\\x07" else ">"
+    endian = "<" if data[:4] == b"\x03\x02#\x07" else ">"
     magic, version, generator, bound, schema = struct.unpack_from(endian + "5I", data, 0)
     major = (version >> 16) & 0xFF
     minor = (version >> 8) & 0xFF
