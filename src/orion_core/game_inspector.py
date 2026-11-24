@@ -149,7 +149,7 @@ def inspect_game_path(
             if kind == "pe_dos_header":
                 try:
                     pe_analysis = analyze_pe(file_path)
-                    scarlett_analysis = inspect_scarlett_pe(file_path)
+                    scarlett_analysis = inspect_scarlett_pe(file_path, pe_report=pe_analysis)
                     dependency_analysis = build_dependency_report(pe_analysis)
                 except PEFormatError as exc:
                     pe_analysis = {"valid_pe_structure": False, "error": str(exc)}
