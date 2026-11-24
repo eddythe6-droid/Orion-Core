@@ -196,6 +196,7 @@ def test_rdef_parses_constant_buffers_and_variable_layout_metadata():
     assert buffer["variables"][0]["name"] == "viewMatrix"
     assert buffer["variables"][0]["start_offset"] == 16
     assert buffer["variables"][0]["size_bytes"] == 16
+    assert buffer["variables"][0]["declared_range_within_constant_buffer"] is True
     assert reflection["variable_type_descriptors_decoded"] is False
 
 
@@ -208,3 +209,16 @@ def test_rdef_reports_out_of_bounds_constant_buffer_and_variable_tables():
     cbuffer = struct.pack("<6I", 0, 1, 0xFFFFFFF0, 64, 0, 0)
     report = inspect_shader_bytes(_container([("RDEF", header + cbuffer)]))
     assert report["chunks"][0]["resource_reflection"]["assessment"] == "constant_buffer_variable_table_out_of_bounds"
+
+
+def test_rdef_flags_variable_range_outside_declared_constant_buffer():
+    names_offset = 28 + 24 + 40
+    payload = (
+        struct.pack("<7I", 1, 28, 0, 0, 0, 0, 0)
+        + struct.pack("<6I", names_offset, 1, 52, 16, 0, 0)
+        + struct.pack("<10I", names_offset + len(b"CB\\x00"), 12, 8, 0, 0, 0, 0, 0, 0, 0)
+        + b"CB\\x00" + b"lateField\\x00"
+    )
+    report = inspect_shader_bytes(_container([("RDEF", payload)]))
+    variable = report["chunks"][0]["resource_reflection"]["constant_buffers"][0]["variables"][0]
+    assert variable["declared_range_within_constant_buffer"] is False
