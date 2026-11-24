@@ -11,7 +11,8 @@ The first game-file workflow is a conservative, read-only inventory tool.
 - Identifies a common Xbox 360 Games on Demand (GOD) sibling layout (`<ContentID>` plus `<ContentID>.data/DataNNNN`) using names and file sizes only.
 - Optionally computes SHA-256 for regular files up to 64 MiB.
 - Writes a machine-readable JSON report.
-- Parses core PE headers for MZ candidates: architecture, PE32/PE32+, image base, entry point, subsystem, sections, and imported DLL names when the import table is safely mappable.\n- Adds a separate Xbox Series / Scarlett candidate assessment for x64 PE files using a small allowlist of GDK/Xbox import-module names. This is a heuristic only, not proof of platform identity or authenticity.
+- Parses core PE headers for MZ candidates: architecture, PE32/PE32+, image base, entry point, subsystem, sections, and imported DLL names when the import table is safely mappable.
+- Adds a separate Xbox Series / Scarlett candidate assessment for x64 PE files using a small allowlist of GDK/Xbox import-module names. This is a heuristic only, not proof of platform identity or authenticity.
 
 ## What it does not do
 - It does not execute files, unpack proprietary containers, decrypt content, bypass DRM, or infer game compatibility.
