@@ -258,10 +258,19 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
     shader_stages: dict[str, int] = {}
     shader_resource_types: dict[str, int] = {}
     shader_resource_bindings = 0
+    spirv_capabilities: dict[str, int] = {}
+    spirv_extensions: dict[str, int] = {}
+    spirv_entry_points = 0
     for item in shader_records:
         analysis = item["shader_analysis"]
         fmt = analysis.get("format", "unrecognized")
         shader_formats[fmt] = shader_formats.get(fmt, 0) + 1
+        for capability in analysis.get("capabilities", []):
+            key = str(capability)
+            spirv_capabilities[key] = spirv_capabilities.get(key, 0) + 1
+        for extension in analysis.get("extensions", []):
+            spirv_extensions[extension] = spirv_extensions.get(extension, 0) + 1
+        spirv_entry_points += len(analysis.get("entry_points", []))
         assessment = analysis.get("assessment", analysis.get("header_assessment", "metadata_inspected"))
         shader_assessments[assessment] = shader_assessments.get(assessment, 0) + 1
         for program in analysis.get("shader_programs", []):
@@ -280,6 +289,9 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
         "dxbc_shader_stages": dict(sorted(shader_stages.items())),
         "rdef_resource_binding_count": shader_resource_bindings,
         "rdef_resource_types": dict(sorted(shader_resource_types.items())),
+        "spirv_capability_occurrences": dict(sorted(spirv_capabilities.items())),
+        "spirv_extension_occurrences": dict(sorted(spirv_extensions.items())),
+        "spirv_entry_point_count": spirv_entry_points,
         "bytecode_validated": False,
         "compatibility_established": False,
     }
