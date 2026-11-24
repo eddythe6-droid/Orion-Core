@@ -147,8 +147,8 @@ def test_game_inspector_reports_malformed_shader_extension(tmp_path):
 
 def test_game_inspector_summarizes_spirv_metadata(tmp_path):
     # OpCapability Shader and OpEntryPoint GLCompute %3 "main".
-    name = b"main\\x00"
-    name += b"\\x00" * ((-len(name)) % 4)
+    name = b"main\x00"
+    name += b"\x00" * ((-len(name)) % 4)
     name_word = struct.unpack("<I", name)[0]
     words = [
         0x07230203, 0x00010000, 1, 16, 0,
