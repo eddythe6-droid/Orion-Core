@@ -172,3 +172,39 @@ def test_spirv_rejects_unaligned_stream_and_unterminated_metadata_strings():
     extension = struct.pack("<2I", (2 << 16) | 10, 0x41424344)
     with pytest.raises(ShaderFormatError, match="not terminated"):
         inspect_spirv_bytes(header + extension)
+
+
+def test_rdef_parses_constant_buffers_and_variable_layout_metadata():
+    # Header, one 24-byte constant-buffer record, one 40-byte variable record,
+    # followed by the two null-terminated names.
+    names_offset = 28 + 24 + 40
+    header = struct.pack("<7I", 1, 28, 0, 0, 0x50050, 0, 0)
+    cbuffer = struct.pack("<6I", names_offset, 1, 52, 64, 2, 0)
+    variable = struct.pack(
+        "<10I", names_offset + len(b"PerFrame\\x00"), 16, 16, 1,
+        0, 0, 0, 0, 0, 0,
+    )
+    payload = header + cbuffer + variable + b"PerFrame\\x00" + b"viewMatrix\\x00"
+    report = inspect_shader_bytes(_container([("RDEF", payload)]))
+    reflection = report["chunks"][0]["resource_reflection"]
+    assert reflection["assessment"] == "common_rdef_reflection_records_parsed"
+    assert reflection["constant_buffer_count"] == 1
+    assert reflection["constant_buffer_variable_count"] == 1
+    buffer = reflection["constant_buffers"][0]
+    assert buffer["name"] == "PerFrame"
+    assert buffer["size_bytes"] == 64
+    assert buffer["variables"][0]["name"] == "viewMatrix"
+    assert buffer["variables"][0]["start_offset"] == 16
+    assert buffer["variables"][0]["size_bytes"] == 16
+    assert reflection["variable_type_descriptors_decoded"] is False
+
+
+def test_rdef_reports_out_of_bounds_constant_buffer_and_variable_tables():
+    bad_cbuffer = struct.pack("<7I", 1, 0xFFFFFFF0, 0, 0, 0, 0, 0)
+    report = inspect_shader_bytes(_container([("RDEF", bad_cbuffer)]))
+    assert report["chunks"][0]["resource_reflection"]["assessment"] == "constant_buffer_table_out_of_bounds"
+
+    header = struct.pack("<7I", 1, 28, 0, 0, 0, 0, 0)
+    cbuffer = struct.pack("<6I", 0, 1, 0xFFFFFFF0, 64, 0, 0)
+    report = inspect_shader_bytes(_container([("RDEF", header + cbuffer)]))
+    assert report["chunks"][0]["resource_reflection"]["assessment"] == "constant_buffer_variable_table_out_of_bounds"
