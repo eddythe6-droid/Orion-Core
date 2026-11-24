@@ -157,7 +157,8 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 "scarlett_analysis": scarlett_analysis,
                 "dependency_analysis": dependency_analysis,
                 "stfs_metadata": stfs_metadata,
-                "xex_metadata": xex_metadata,\n                "shader_analysis": shader_analysis,
+                "xex_metadata": xex_metadata,
+                "shader_analysis": shader_analysis,
             })
             counts[kind] = counts.get(kind, 0) + 1
         except OSError as exc:
