@@ -227,8 +227,8 @@ def test_game_inspector_summarizes_rdef_constant_buffers(tmp_path):
     rdef = (
         struct.pack("<7I", 1, 28, 0, 0, 0x50050, 0, 0)
         + struct.pack("<6I", names_offset, 1, 52, 48, 0, 0)
-        + struct.pack("<10I", names_offset + len(b"FrameData\\x00"), 0, 16, 0, 0, 0, 0, 0, 0, 0)
-        + b"FrameData\\x00" + b"cameraPosition\\x00"
+        + struct.pack("<10I", names_offset + len(b"FrameData\x00"), 0, 16, 0, 0, 0, 0, 0, 0, 0)
+        + b"FrameData\x00" + b"cameraPosition\x00"
     )
     chunk = b"RDEF" + struct.pack("<I", len(rdef)) + rdef
     total_size = 36 + len(chunk)
