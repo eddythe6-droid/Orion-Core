@@ -74,6 +74,9 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Stream native `[ORION_PROGRESS]` events from standard error into the live console
 - [ ] Add dedicated GPU, memory, CPU, evidence, and compatibility views
 - [x] Add local PE import-to-export cross-reference with ambiguity, architecture, ordinal and forwarder states
+- [x] Add delay-load module presence checks (delay-load symbols remain unparsed)
+- [x] Add curated exact-name Win32 API family catalogue with explicit non-equivalence warnings
+- [x] Add searchable dependency table, selection details, separate file/folder pickers and analysis progress indicator
 - [x] Add guided Game Inspector workspace with file/folder picker, asynchronous analysis, PE dependency/export summary and JSON export
 - [ ] Package a Windows desktop build and validate on physical hardware
 
