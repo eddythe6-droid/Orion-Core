@@ -1,3 +1,4 @@
+import hashlib
 import json
 import struct
 import zipfile
@@ -187,3 +188,31 @@ def test_game_inspector_exposes_xcontent_package_metadata(tmp_path):
     assert report["stfs"]["title_id"] == 0x4D530001
     assert report["files"][0]["stfs_metadata"]["signature_type"] == "CON"
     assert report["extraction_performed"] is False
+
+
+
+def test_full_hash_option_streams_large_pe_file_even_when_general_hashing_is_off(tmp_path, monkeypatch):
+    import orion_core.game_inspector as inspector_module
+
+    monkeypatch.setattr(inspector_module, "HASH_LIMIT_BYTES", 4)
+    payload = b"MZ" + b"\x00" * 256
+    source = tmp_path / "candidate.exe"
+    source.write_bytes(payload)
+
+    report = inspect_game_path(source, hash_large_executables=True)
+    record = report["files"][0]
+    assert record["sha256"] == hashlib.sha256(payload).hexdigest()
+    assert record["sha256_status"] == "computed"
+
+
+def test_large_executable_hash_is_not_computed_without_explicit_opt_in(tmp_path, monkeypatch):
+    import orion_core.game_inspector as inspector_module
+
+    monkeypatch.setattr(inspector_module, "HASH_LIMIT_BYTES", 4)
+    source = tmp_path / "candidate.exe"
+    source.write_bytes(b"MZ" + b"\x00" * 256)
+
+    report = inspect_game_path(source, hash_files=True)
+    record = report["files"][0]
+    assert record["sha256"] is None
+    assert record["sha256_status"] == "over_64_mib_limit"
