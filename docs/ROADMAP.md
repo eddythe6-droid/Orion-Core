@@ -80,6 +80,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Inventory shader-like and texture-like asset paths by extension with explicit evidence limits\n- [x] Parse bounded DXBC container/chunk metadata and SHDR/SHEX shader-model tokens
 - [x] Identify shader binaries by magic and report extension/format mismatches
 - [x] Recognize bounded SPIR-V module headers and summarize shader formats/stages in JSON reports
+- [x] Walk SPIR-V instruction framing with word-count bounds and inventory opcode counts, capabilities, extensions, and entry points (not semantic validation)
 - [x] Parse common DXBC RDEF resource-binding records with strict table and string bounds
 - [x] Include RDEF resource counts and resource-type summaries in Game Inspector JSON\n- [x] Extract basic DXIL program-header fields without validating bitcode
 - [x] Add searchable dependency table, selection details, separate file/folder pickers and analysis progress indicator
