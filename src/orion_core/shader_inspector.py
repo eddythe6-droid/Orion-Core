@@ -18,6 +18,80 @@ class ShaderFormatError(ValueError):
     """Raised when a shader container is malformed or exceeds parser bounds."""
 
 
+_RDEF_INPUT_TYPES = {
+    0: "constant_buffer", 1: "texture_buffer", 2: "texture", 3: "sampler",
+    4: "typed_uav", 5: "structured", 6: "rw_structured", 7: "byte_address",
+    8: "rw_byte_address", 9: "append_structured", 10: "consume_structured",
+    11: "counter",
+}
+_RDEF_DIMENSIONS = {
+    0: "unknown", 1: "buffer", 2: "texture1d", 3: "texture1d_array",
+    4: "texture2d", 5: "texture2d_array", 6: "texture2d_ms",
+    7: "texture2d_ms_array", 8: "texture3d", 9: "texture_cube",
+    10: "texture_cube_array", 11: "buffer_ex",
+}
+
+
+def _read_rdef_string(payload: bytes, offset: int) -> str | None:
+    if offset < 0 or offset >= len(payload):
+        return None
+    end = payload.find(b"\\x00", offset, min(len(payload), offset + 4096))
+    if end < 0:
+        return None
+    return payload[offset:end].decode("utf-8", errors="replace")
+
+
+def _inspect_rdef(payload: bytes) -> dict[str, Any]:
+    """Parse the common 28-byte RDEF header and 32-byte resource bindings only."""
+    if len(payload) < 28:
+        return {"assessment": "truncated_rdef_header", "resources": []}
+    cb_count, cb_offset, resource_count, resource_offset, target, flags, creator_offset = struct.unpack_from(
+        "<7I", payload, 0
+    )
+    if resource_count > 16384:
+        return {"assessment": "resource_count_exceeds_parser_limit", "resources": []}
+    table_end = resource_offset + resource_count * 32
+    if resource_offset < 28 or table_end > len(payload):
+        return {"assessment": "resource_binding_table_out_of_bounds", "resources": []}
+    resources = []
+    for index in range(resource_count):
+        pos = resource_offset + index * 32
+        name_offset, input_type, return_type, dimension, sample_count, bind_point, bind_count, bind_flags = struct.unpack_from(
+            "<8I", payload, pos
+        )
+        name = _read_rdef_string(payload, name_offset)
+        resources.append({
+            "name": name,
+            "name_offset": name_offset,
+            "input_type_id": input_type,
+            "input_type": _RDEF_INPUT_TYPES.get(input_type, "unknown"),
+            "return_type_id": return_type,
+            "dimension_id": dimension,
+            "dimension": _RDEF_DIMENSIONS.get(dimension, "unknown"),
+            "sample_count": sample_count,
+            "bind_point": bind_point,
+            "bind_count": bind_count,
+            "bind_flags": bind_flags,
+        })
+    creator = _read_rdef_string(payload, creator_offset) if creator_offset else None
+    return {
+        "assessment": "common_rdef_resource_table_parsed",
+        "constant_buffer_count": cb_count,
+        "constant_buffer_table_offset": cb_offset,
+        "resource_count": resource_count,
+        "resource_table_offset": resource_offset,
+        "target_word": target,
+        "flags": flags,
+        "creator": creator,
+        "resources": resources,
+        "constant_buffer_records_parsed": False,
+        "limitations": [
+            "Only the common RDEF header and 32-byte resource-binding records are parsed.",
+            "Constant-buffer records, variable layouts, signatures, and target-specific RDEF variants are not decoded.",
+        ],
+    }
+
+
 def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
     """Read container/chunk metadata; never validates signatures or executes bytecode."""
     if len(data) < 4 or data[:4] != b"DXBC":
@@ -78,6 +152,8 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
                 stages.append(stage_info)
             else:
                 chunk_info["shader_program"] = {"assessment": "truncated_program_header"}
+        elif fourcc == "RDEF":
+            chunk_info["resource_reflection"] = _inspect_rdef(payload)
         elif fourcc == "DXIL":
             program: dict[str, Any] = {"container_chunk": "DXIL"}
             if len(payload) >= 24 and payload[8:12] == b"DXIL":
@@ -116,7 +192,7 @@ def inspect_shader_bytes(data: bytes) -> dict[str, Any]:
         "compatibility_established": False,
         "limitations": [
             "The DXBC hash/checksum is not verified.",
-            "Shader bytecode instructions, reflection bindings, signatures, root signatures, and pipeline state are not decoded.",
+            "Shader instructions, signatures, root signatures, and pipeline state are not decoded; only common RDEF resource-binding records are inventoried.",
             "DXIL bitcode is not parsed or validated.",
             "A structurally recognized container does not prove driver or Xbox/Windows compatibility.",
         ],
