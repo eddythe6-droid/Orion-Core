@@ -319,12 +319,20 @@ class OrionDashboard:
         options_row.pack(fill="x", pady=(6, 0))
         self.hash_files_var = tk.BooleanVar(value=False)
         tk.Checkbutton(
-            options_row, text="SHA-256 для обычных файлов до 64 MiB",
+            options_row, text="SHA-256 для файлов до 64 MiB",
             variable=self.hash_files_var,
             bg="#10172c", fg="#9fafd3", activebackground="#10172c",
             activeforeground="#ffffff", selectcolor="#171f3a",
             highlightthickness=0, bd=0, font=("Segoe UI", 8)
         ).pack(side="left")
+        self.hash_large_executables_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            options_row, text="Полный SHA-256 PE / XEX / XContent",
+            variable=self.hash_large_executables_var,
+            bg="#10172c", fg="#d1b8ff", activebackground="#10172c",
+            activeforeground="#ffffff", selectcolor="#171f3a",
+            highlightthickness=0, bd=0, font=("Segoe UI", 8)
+        ).pack(side="left", padx=(8, 0))
         ttk.Button(
             options_row, text="Подробный отчёт",
             command=lambda: self._show_details("Анализ игры", update_nav=True)
@@ -1383,6 +1391,7 @@ class OrionDashboard:
         self.source_path.set(path)
         self.game_path.set(path)
         hash_files = bool(self.hash_files_var.get())
+        hash_large_executables = bool(self.hash_large_executables_var.get())
         self.inspect_button.configure(state="disabled")
         self.game_button.configure(state="disabled")
         self.game_progress.start(12)
@@ -1401,18 +1410,27 @@ class OrionDashboard:
         self._log(
             "INFO",
             f"Начат read-only анализ игрового материала: {path}"
-            + ("; SHA-256 включён для файлов до 64 MiB." if hash_files else ".")
+            + ("; SHA-256 включён для файлов до 64 MiB." if hash_files else "")
+            + ("; полный streaming SHA-256 включён для PE/XEX/XContent." if hash_large_executables else ".")
         )
         self.worker = threading.Thread(
-            target=self._game_inspection_worker, args=(path, hash_files), daemon=True
+            target=self._game_inspection_worker,
+            args=(path, hash_files, hash_large_executables),
+            daemon=True
         )
         self.worker.start()
 
-    def _game_inspection_worker(self, path: str, hash_files: bool = False) -> None:
+    def _game_inspection_worker(
+        self, path: str, hash_files: bool = False, hash_large_executables: bool = False
+    ) -> None:
         try:
             self._emit("INFO", "Game Inspector: определение контейнера и формата источника.")
             self._emit("INFO", "Game Inspector: инвентаризация записей, исполняемых файлов и ресурсов.")
-            report = inspect_game_path(path, hash_files=hash_files)
+            report = inspect_game_path(
+                path,
+                hash_files=hash_files,
+                hash_large_executables=hash_large_executables,
+            )
             self.events.put(("game_report", report))
             self._emit(
                 "SUCCESS",
