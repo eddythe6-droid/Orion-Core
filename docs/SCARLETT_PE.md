@@ -8,7 +8,7 @@ Microsoft's GDK documentation distinguishes console XVC packages from PC MSIXVC 
 
 ## Current implementation
 
-- Parse PE headers, architecture, sections and imported DLL names using the existing bounded PE analyzer.
+- Parse PE headers, architecture, sections, imported DLL names, and bounded imported function names/ordinals using the PE analyzer.
 - Report x86-64 PE shape as a necessary architecture clue.
 - Flag selected GDK/Xbox module names such as `d3d12_xs.dll`, `xgameruntime.dll`, `xgameplatform.dll`, `xmem.dll` and `xma2dsp.dll`.
 - Preserve the underlying PE report.
@@ -17,7 +17,7 @@ Microsoft's GDK documentation distinguishes console XVC packages from PC MSIXVC 
 
 ## Important limitations
 
-The import-name list is deliberately small and must be expanded only from reliable GDK documentation, Microsoft samples or independently inspected authorized binaries. Delay-loaded imports, API sets, forwarded exports, ordinal imports, static linking and runtime-loaded modules are not fully represented. Current parser does not resolve imported functions or validate package identity/configuration.
+The import-name list is deliberately small and must be expanded only from reliable GDK documentation, Microsoft samples or independently inspected authorized binaries. Delay-loaded imports, API sets, forwarded exports, static linking and runtime-loaded modules are not fully represented. Named imports and ordinal references are listed statically; ordinal targets are not resolved to export names. The parser does not validate package identity/configuration.
 
 A PE32+ x86-64 file is not automatically an Xbox executable. Likewise, a GDK-looking import name does not prove that a file is an authentic Rockstar build. Authenticity and provenance require independent evidence.
 
