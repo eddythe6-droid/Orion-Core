@@ -22,7 +22,7 @@ The Game Inspector creates a JSON inventory from a game directory, a supported d
 | Xbox 360 XContent / STFS | Public metadata in `CON `, `LIVE`, and `PIRS` headers |
 | Xbox 360 GOD / SVOD | Conservative detection of the sibling header + `.data/DataNNNN` layout; file names and sizes only |
 | Xbox 360 XEX2 | Public wrapper metadata, optional-header directory, entry point, image base and execution information |
-| Windows PE | PE structure, architecture, named/ordinal imports, delay-load DLL descriptors; optional Xbox Series / Scarlett GDK import hints |
+| Windows PE | PE structure, architecture, named/ordinal imports, delay-load DLL descriptors; optional Xbox Series / Scarlett GDK import hints, curated Win32 API families, and graphics-stack dependency evidence |
 
 The parsers are deliberately read-only. XEX2 inspection does not decrypt or decompress the wrapped PowerPC image. STFS/SVOD inspection does not validate package signatures, process hash tables, or reconstruct payload files. A detected signature or layout is evidence for further investigation, not proof that a complete or valid game has been parsed.
 
@@ -145,6 +145,7 @@ See [RESEARCH_CAPABILITY_CATALOG](docs/RESEARCH_CAPABILITY_CATALOG.md).
 - [PE export analysis](docs/PE_EXPORT_ANALYSIS.md)
 - [PE import resolution](docs/PE_IMPORT_RESOLUTION.md)
 - [Win32 API symbol catalogue](docs/API_SYMBOL_CATALOG.md)
+- [Graphics dependency analysis](docs/GRAPHICS_DEPENDENCIES.md)
 - [Native D3D12 probe](docs/NATIVE_D3D12_PROBE.md)
 - [Graphics harness](docs/GRAPHICS_HARNESS.md)
 - [Graphics research deep dive](docs/RESEARCH_GRAPHICS_DEEP_DIVE.md)
