@@ -12,7 +12,7 @@ def build_local_export_index(files: list[dict[str, Any]]) -> dict[str, list[dict
         pe = record.get("pe_analysis") or {}
         if not pe.get("valid_pe_structure"):
             continue
-        name = PurePosixPath(str(record.get("path", "")).replace("\\\\", "/")).name.casefold()
+        name = PurePosixPath(str(record.get("path", "")).replace(chr(92), "/")).name.casefold()
         if not name:
             continue
         exports = pe.get("exported_functions", [])
@@ -32,8 +32,15 @@ def resolve_imports_against_local_files(
     results: list[dict[str, Any]] = []
     counts = {"resolved_name_match": 0, "resolved_ordinal_match": 0, "forwarded_export": 0,
               "missing_module": 0, "missing_symbol": 0, "ambiguous_module": 0,
-              "incomplete_or_unknown": 0}
-    imports = pe_analysis.get("import_modules", [])
+              "incomplete_or_unknown": 0, "architecture_mismatch": 0}
+    imports = [
+        {**module, "import_kind": "normal"}
+        for module in pe_analysis.get("import_modules", []) if isinstance(module, dict)
+    ]
+    imports.extend(
+        {**module, "functions": module.get("functions", []), "import_kind": "delay_load"}
+        for module in pe_analysis.get("delay_import_modules", []) if isinstance(module, dict)
+    )
     for module in imports:
         if not isinstance(module, dict) or not isinstance(module.get("dll"), str):
             continue
@@ -41,17 +48,17 @@ def resolve_imports_against_local_files(
         candidates = local_index.get(dll.casefold(), [])
         if not candidates:
             counts["missing_module"] += 1
-            results.append({"module": dll, "status": "missing_module", "symbols": []})
+            results.append({"module": dll, "import_kind": module.get("import_kind", "normal"), "status": "missing_module", "symbols": []})
             continue
         if len(candidates) != 1:
             counts["ambiguous_module"] += 1
-            results.append({"module": dll, "status": "ambiguous_module",
+            results.append({"module": dll, "import_kind": module.get("import_kind", "normal"), "status": "ambiguous_module",
                             "candidate_paths": [item["path"] for item in candidates], "symbols": []})
             continue
         candidate = candidates[0]
         if candidate["architecture"] != pe_analysis.get("architecture") and candidate["architecture"] != "unknown" and pe_analysis.get("architecture") != "unknown":
-            counts["incomplete_or_unknown"] += 1
-            results.append({"module": dll, "status": "architecture_mismatch",
+            counts["architecture_mismatch"] += 1
+            results.append({"module": dll, "import_kind": module.get("import_kind", "normal"), "status": "architecture_mismatch",
                             "candidate_path": candidate["path"], "symbols": []})
             continue
         by_name = {name.casefold(): export for export in candidate["exports"]
@@ -82,7 +89,7 @@ def resolve_imports_against_local_files(
             symbol_results.append({"import": symbol, "status": status,
                                    "export_ordinal": found.get("ordinal") if found else None,
                                    "forwarder": found.get("forwarder") if found else None})
-        results.append({"module": dll, "status": "candidate_file_found",
+        results.append({"module": dll, "import_kind": module.get("import_kind", "normal"), "status": "candidate_file_found",
                         "candidate_path": candidate["path"], "symbols": symbol_results})
     total = sum(counts.values())
     return {
@@ -93,7 +100,7 @@ def resolve_imports_against_local_files(
             "Matching is limited to PE files present in the inspected folder and exact DLL basenames.",
             "A matching name or ordinal does not validate ABI, calling convention, structure layout, version, or runtime behavior.",
             "Forwarded exports are reported but their forwarding chains are not followed.",
-            "API-set contracts, system search order, transitive dependencies, dynamically loaded modules, and delay-load symbol tables are not resolved.",
+            "API-set contracts, system search order, transitive dependencies, and dynamically loaded modules are not resolved; delay-load module names are listed but delay-load symbols are not parsed.",
             "Missing local files are not proof that a dependency is unavailable on the target operating system.",
         ],
     }
