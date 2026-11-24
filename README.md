@@ -8,7 +8,7 @@
 
 ### Game Inspector
 
-The desktop dashboard includes a dedicated **Анализ игры** workspace: choose a directory, EXE/DLL, ISO/XISO or supported package, inspect locally, review PE import/export counts and Xbox dependency hints, then export the full JSON report. The interface does not execute discovered files.
+The desktop dashboard opens directly into the **Game Research Lab**: choose a directory, EXE/DLL, ISO/XISO or supported package, inspect locally, review the media inventory and Xbox Series PE evidence, then export the full JSON report. The interface does not execute discovered files. The live console supports a **Копировать** button, selection/full-log context menu, Ctrl+A and Ctrl+C.
 
 The Game Inspector creates a JSON inventory from a game directory, a supported disc image, a package file, or a ZIP archive.
 
@@ -22,7 +22,7 @@ The Game Inspector creates a JSON inventory from a game directory, a supported d
 | Xbox 360 XContent / STFS | Public metadata in `CON `, `LIVE`, and `PIRS` headers |
 | Xbox 360 GOD / SVOD | Conservative detection of the sibling header + `.data/DataNNNN` layout; file names and sizes only |
 | Xbox 360 XEX2 | Public wrapper metadata, optional-header directory, entry point, image base and execution information |
-| Windows PE | PE structure, architecture, named/ordinal imports, delay-load DLL descriptors; optional Xbox Series / Scarlett GDK import hints, curated Win32 API families, graphics-stack dependency evidence, and bounded DXBC/DXIL/SPIR-V shader metadata |
+| Windows PE | PE/COFF headers, data directories, section flags and bounds, named/ordinal imports, normal and delay-load Xbox/GDK dependency evidence, bounded Authenticode certificate-table framing, curated Win32 API families, graphics-stack dependencies and bounded DXBC/DXIL/SPIR-V shader metadata |
 
 The parsers are deliberately read-only. XEX2 inspection does not decrypt or decompress the wrapped PowerPC image. STFS/SVOD inspection does not validate package signatures, process hash tables, or reconstruct payload files. A detected signature or layout is evidence for further investigation, not proof that a complete or valid game has been parsed.
 
@@ -105,13 +105,13 @@ python -m orion_core --inspect-game-path "D:\\Games\\default.xex" --inspect-outp
 python -m orion_core --inspect-game-path "D:\\Packages\\content"
 ```
 
-Optional SHA-256 is limited to regular files no larger than 64 MiB:
+Optional SHA-256 for ordinary files is limited to files no larger than 64 MiB:
 
 ```bash
 python -m orion_core --inspect-game-path "D:\\Games\\Example" --inspect-hash-files
 ```
 
-The inspector reports detected formats, metadata, file sizes, parser warnings and explicit scope flags. It does not mount images or unpack archives.
+A separate opt-in GUI option enables streaming SHA-256 for PE, XEX2 and XContent/STFS executable/package candidates regardless of file size; this can take a long time for very large files. The inspector reports detected formats, PE data-directory/section metadata, certificate-table framing, import dependency hints, file sizes, parser warnings and explicit scope flags. It does not mount images or unpack archives.
 
 ## Native Direct3D 12 probe
 
