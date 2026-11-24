@@ -124,3 +124,20 @@ def test_game_inspector_includes_scarlett_assessment_for_valid_pe(tmp_path):
     assert record["scarlett_analysis"]["authenticity_verified"] is False
     assert record["dependency_analysis"]["module_count"] == 0
     assert record["dependency_analysis"]["compatibility_established"] is False
+
+def test_game_inspector_detects_shader_by_magic_not_extension(tmp_path):
+    spirv = tmp_path / "payload.dat"
+    spirv.write_bytes(struct.pack("<5I", 0x07230203, 0x00010000, 3, 32, 0))
+    report = inspect_game_path(tmp_path)
+    record = report["files"][0]
+    assert record["shader_analysis"]["format"] == "spirv"
+    assert record["shader_analysis"]["extension_format_match"] is True
+
+
+def test_game_inspector_reports_malformed_shader_extension(tmp_path):
+    shader = tmp_path / "broken.spv"
+    shader.write_bytes(b"not a shader")
+    report = inspect_game_path(tmp_path)
+    record = report["files"][0]
+    assert record["shader_analysis"]["assessment"] == "unrecognized_or_malformed_shader_container"
+    assert record["shader_analysis"]["bytecode_validated"] is False
