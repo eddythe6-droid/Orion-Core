@@ -30,7 +30,7 @@ def _read_c_string(stream, offset: int, file_size: int) -> str:
     data = bytearray()
     for pos in range(MAX_NAME_BYTES):
         byte = _read_at(stream, offset + pos, 1, file_size)
-        if byte == b"\\0":
+        if byte == b"\0":
             return data.decode("ascii", errors="replace")
         data.extend(byte)
     raise PEFormatError("import name is not null-terminated within parser limit")
@@ -45,7 +45,7 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
             if _read_at(stream, 0, 2, file_size) != b"MZ":
                 raise PEFormatError("missing DOS MZ signature")
             pe_offset = struct.unpack("<I", _read_at(stream, 0x3C, 4, file_size))[0]
-            if _read_at(stream, pe_offset, 4, file_size) != b"PE\\0\\0":
+            if _read_at(stream, pe_offset, 4, file_size) != b"PE\0\0":
                 raise PEFormatError("missing PE signature")
             coff = _read_at(stream, pe_offset + 4, 20, file_size)
             machine, section_count, timestamp, _, _, optional_size, characteristics = struct.unpack("<HHIIIHH", coff)
@@ -78,7 +78,7 @@ def analyze_pe(path: str | Path) -> dict[str, Any]:
             sections, section_maps = [], []
             for index in range(section_count):
                 raw = section_table[index * 40:(index + 1) * 40]
-                name = raw[:8].split(b"\\0", 1)[0].decode("ascii", errors="replace")
+                name = raw[:8].split(b"\0", 1)[0].decode("ascii", errors="replace")
                 virtual_size, virtual_address, raw_size, raw_offset = struct.unpack_from("<IIII", raw, 8)
                 sections.append({"name": name, "virtual_address": virtual_address,
                     "virtual_size": virtual_size, "raw_size": raw_size, "raw_offset": raw_offset})
