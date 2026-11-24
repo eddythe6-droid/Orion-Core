@@ -111,6 +111,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 header = stream.read(16)
             kind = _classify(file_path, header)
             pe_analysis = None
+            scarlett_analysis = None
             stfs_metadata = None
             xex_metadata = None
             if kind == "xex2":
@@ -126,8 +127,11 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
             if kind == "pe_dos_header":
                 try:
                     pe_analysis = analyze_pe(file_path)
+                    scarlett_analysis = inspect_scarlett_pe(file_path)
                 except PEFormatError as exc:
                     pe_analysis = {"valid_pe_structure": False, "error": str(exc)}
+                    scarlett_analysis = {"assessment": "invalid_or_unsupported_pe", "error": str(exc),
+                                         "authenticity_verified": False, "execution_performed": False}
             records.append({
                 "path": relative,
                 "size_bytes": stat.st_size,
@@ -135,6 +139,7 @@ def inspect_game_path(path: str | Path, *, max_files: int = MAX_FILES, hash_file
                 "detected_type": kind,
                 "sha256": _sha256(file_path, stat.st_size) if hash_files else None,
                 "pe_analysis": pe_analysis,
+                "scarlett_analysis": scarlett_analysis,
                 "stfs_metadata": stfs_metadata,
                 "xex_metadata": xex_metadata,
             })
