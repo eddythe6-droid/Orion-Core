@@ -125,6 +125,10 @@ def test_game_inspector_includes_scarlett_assessment_for_valid_pe(tmp_path):
     assert record["scarlett_analysis"]["authenticity_verified"] is False
     assert record["dependency_analysis"]["module_count"] == 0
     assert record["dependency_analysis"]["compatibility_established"] is False
+    xbox_summary = report["xbox_series_summary"]
+    assert xbox_summary["pe_files_with_scarlett_assessment"] == 1
+    assert xbox_summary["pe32_plus_x64_files"] == 1
+    assert xbox_summary["cryptographic_signature_verification_performed"] is False
 
 def test_game_inspector_detects_shader_by_magic_not_extension(tmp_path):
     spirv = tmp_path / "payload.dat"
