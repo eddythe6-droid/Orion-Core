@@ -332,9 +332,9 @@ def inspect_xvd_file(path: str | Path) -> dict[str, Any]:
                 "data_length": _u32(header, offset + 0x10),
             }
             if any(entry.values()):
-                entry["file_range_in_bounds"] = (
+                entry["data_range_in_bounds"] = (
                     entry["offset"] <= file_size
-                    and entry["length"] <= file_size - entry["offset"]
+                    and entry["data_length"] <= file_size - entry["offset"]
                 )
                 extension_entries.append(entry)
 
