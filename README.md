@@ -22,6 +22,7 @@ The Game Inspector creates a JSON inventory from a game directory, a supported d
 | Xbox 360 XContent / STFS | Public metadata in `CON `, `LIVE`, and `PIRS` headers |
 | Xbox 360 GOD / SVOD | Conservative detection of the sibling header + `.data/DataNNNN` layout; file names and sizes only |
 | Xbox 360 XEX2 | Public wrapper metadata, optional-header directory, entry point, image base and execution information |
+| Xbox XVD / XVC | Fixed XVD header, volume/content metadata and bounded XVC region/update-segment manifest records; no decryption or filesystem extraction |
 | Windows PE | PE/COFF headers, data directories, section flags and bounds, named/ordinal imports, normal and delay-load Xbox/GDK dependency evidence, bounded Authenticode certificate-table framing, curated Win32 API families, graphics-stack dependencies and bounded DXBC/DXIL/SPIR-V shader metadata, including RDEF resource bindings and constant-buffer variable layouts |
 
 The parsers are deliberately read-only. XEX2 inspection does not decrypt or decompress the wrapped PowerPC image. STFS/SVOD inspection does not validate package signatures, process hash tables, or reconstruct payload files. A detected signature or layout is evidence for further investigation, not proof that a complete or valid game has been parsed.
@@ -140,7 +141,8 @@ See [RESEARCH_CAPABILITY_CATALOG](docs/RESEARCH_CAPABILITY_CATALOG.md).
 - [Roadmap](docs/ROADMAP.md)
 - [Game Inspector](docs/GAME_INSPECTOR.md)
 - [XDVDFS / XISO](docs/XDVDFS.md)
-- [Xbox 360 XEX2 metadata](docs/XEX2.md)\n- [Xbox Series / Scarlett PE analysis](docs/SCARLETT_PE.md)
+- [Xbox 360 XEX2 metadata](docs/XEX2.md)
+- [Xbox XVD / XVC metadata](docs/XVD_XVC.md)\n- [Xbox Series / Scarlett PE analysis](docs/SCARLETT_PE.md)
 - [PE dependency triage](docs/PE_DEPENDENCY_TRIAGE.md)
 - [PE export analysis](docs/PE_EXPORT_ANALYSIS.md)
 - [PE import resolution](docs/PE_IMPORT_RESOLUTION.md)
