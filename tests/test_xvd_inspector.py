@@ -37,7 +37,7 @@ def _make_xvc(path, *, content_type=1, version=2, region_count=1, manifest_lengt
     region_description = "XVC-HD".encode("utf-16le")
     region[0x10:0x10 + len(region_description)] = region_description
     struct.pack_into("<Q", region, 0x50, 0x4000)
-    struct.pack_into("<Q", region, 0x58, 0x100)
+    struct.pack_into("<Q", region, 0x58, 0x1C)
     struct.pack_into("<Q", region, 0x60, 0x1122334455667788)
 
     segment = struct.pack("<IQ", 7, 0x1122334455667788)
