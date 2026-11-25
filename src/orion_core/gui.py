@@ -530,6 +530,8 @@ class OrionDashboard:
                 evidence, tags = "XEX2: метаданные", ("candidate",)
             elif record.get("stfs_metadata") is not None:
                 evidence, tags = "XContent: метаданные", ("candidate",)
+            elif record.get("xvd_metadata") is not None:
+                evidence, tags = "XVC: манифест" if (record.get("xvd_metadata") or {}).get("container_format") == "XVC" else "XVD: заголовок", ("candidate",)
             elif record.get("shader_analysis") is not None:
                 evidence, tags = "Shader: метаданные", ("shader",)
             elif record.get("archive_member"):
@@ -560,7 +562,7 @@ class OrionDashboard:
             path = str(record.get("path", ""))
             kind = str(record.get("detected_type", "unknown"))
             evidence = " ".join(str(record.get(key) or "") for key in (
-                "pe_analysis", "xex_metadata", "stfs_metadata", "shader_analysis"
+                "pe_analysis", "xex_metadata", "stfs_metadata", "xvd_metadata", "shader_analysis"
             ))
             if query and query not in (path + " " + kind + " " + evidence).casefold():
                 continue
@@ -574,7 +576,7 @@ class OrionDashboard:
                 values=(
                     path, kind, self._format_size(record.get("size_bytes")),
                     "Метаданные доступны" if any(record.get(key) is not None for key in (
-                        "pe_analysis", "xex_metadata", "stfs_metadata", "shader_analysis"
+                        "pe_analysis", "xex_metadata", "stfs_metadata", "xvd_metadata", "shader_analysis"
                     )) else "Инвентарь"
                 ),
                 tags=(tag,) if tag else ()
@@ -601,6 +603,7 @@ class OrionDashboard:
             ("scarlett_analysis", "Xbox Series / GDK hint"),
             ("xex_metadata", "XEX2"),
             ("stfs_metadata", "XContent"),
+            ("xvd_metadata", "Xbox XVD/XVC"),
             ("shader_analysis", "Shader"),
             ("dependency_analysis", "Dependencies"),
         ):
@@ -621,6 +624,8 @@ class OrionDashboard:
             "xdvdfs": "Xbox XDVDFS / XISO",
             "iso9660": "ISO9660",
             "xcontent_package": "Xbox 360 XContent",
+            "xvc_package": "Xbox XVC package",
+            "xvd_package": "Xbox XVD package",
             "zip_archive": "ZIP-архив",
             "file": "Отдельный файл",
         }
@@ -667,6 +672,16 @@ class OrionDashboard:
         if iso:
             sections.extend(["", "ISO9660:", json.dumps(iso, ensure_ascii=False, indent=2)[:4500]])
 
+        xvd = report.get("xvd_summary", {})
+        if xvd.get("files_with_xvd_metadata"):
+            sections.extend([
+                "", "XBOX XVD / XVC:",
+                f"  Файлов с заголовком XVD: {xvd.get('files_with_xvd_metadata', 0)}",
+                f"  XVC-пакетов: {xvd.get('xvc_packages', 0)}",
+                f"  Записей регионов в манифестах: {xvd.get('xvc_regions_parsed', 0)}",
+                f"  Статусы манифестов: {json.dumps(xvd.get('xvc_manifest_statuses', {}), ensure_ascii=False)}",
+                "  Подписи, хеш-деревья и шифрование не проверялись/не обходились.",
+            ])
         stfs = report.get("stfs")
         if stfs:
             title_id = stfs.get("title_id")
