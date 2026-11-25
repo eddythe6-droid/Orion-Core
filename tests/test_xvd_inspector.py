@@ -15,7 +15,11 @@ def _write_guid(buf, offset, value):
     buf[offset:offset + 16] = uuid.UUID(value).bytes_le
 
 
-def _make_xvc(path, *, content_type=1, version=2, region_count=1, manifest_length_override=None):
+def _make_xvc(
+    path, *, content_type=1, version=2, region_count=1,
+    manifest_length_override=None, integrity_enabled=False,
+    embedded_length=0, user_data_length=0, mutable_data_pages=0,
+):
     info = bytearray(XVC_INFO_FIXED_SIZE)
     _write_guid(info, 0x00, "12345678-1234-5678-9abc-def012345678")
     _write_guid(info, 0x10, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
@@ -60,23 +64,41 @@ def _make_xvc(path, *, content_type=1, version=2, region_count=1, manifest_lengt
 
     header = bytearray(HEADER_SIZE)
     header[0x200:0x208] = b"msft-xvd"
-    # EncryptionDisabled | DataIntegrityDisabled: this fixture is deliberately plaintext.
-    struct.pack_into("<I", header, 0x208, 0x06)
+    # Fixtures are plaintext; data-integrity layout can be toggled independently.
+    volume_flags = 0x02 | (0 if integrity_enabled else 0x04)
+    struct.pack_into("<I", header, 0x208, volume_flags)
     struct.pack_into("<I", header, 0x20C, 3)
     struct.pack_into("<Q", header, 0x218, 0x1000)
     _write_guid(header, 0x220, "01010101-0202-0303-0404-050505050505")
     _write_guid(header, 0x230, "11111111-2222-3333-4444-555555555555")
     struct.pack_into("<I", header, 0x280, 0)
     struct.pack_into("<I", header, 0x284, content_type)
-    struct.pack_into("<I", header, 0x288, 0)
-    struct.pack_into("<I", header, 0x28C, 0)
+    struct.pack_into("<I", header, 0x288, embedded_length)
+    struct.pack_into("<I", header, 0x28C, user_data_length)
     struct.pack_into("<I", header, 0x290, declared_manifest_length)
     struct.pack_into("<I", header, 0x294, 0)
     struct.pack_into("<I", header, 0x298, 0xAA000)
+    header[0x470] = mutable_data_pages
     _write_guid(header, 0x39C, "aaaaaaaa-1111-2222-3333-444444444444")
     _write_guid(header, 0x3AC, "bbbbbbbb-1111-2222-3333-444444444444")
 
-    path.write_bytes(bytes(header) + manifest + bytes(0x100))
+    page = 0x1000
+    page_count = lambda size: (size + page - 1) // page if size else 0
+    manifest_pages = page_count(declared_manifest_length)
+    if integrity_enabled:
+        hashed_pages = page_count(0x1000) + page_count(user_data_length) + manifest_pages
+        hash_pages = (hashed_pages + 169) // 170
+    else:
+        hash_pages = 0
+    manifest_offset = (
+        HEADER_SIZE + page_count(embedded_length) * page
+        + mutable_data_pages * page + hash_pages * page
+        + page_count(user_data_length) * page
+    )
+    image = bytearray(manifest_offset + len(manifest) + 0x100)
+    image[:HEADER_SIZE] = header
+    image[manifest_offset:manifest_offset + len(manifest)] = manifest
+    path.write_bytes(image)
 
 
 def test_inspects_xvc_header_and_version_two_manifest(tmp_path):
@@ -104,6 +126,27 @@ def test_inspects_xvc_header_and_version_two_manifest(tmp_path):
     assert report["header_signature_cryptographically_verified"] is False
     assert report["payload_decrypted"] is False
 
+
+
+def test_manifest_locator_accounts_for_embedded_xvd_mutable_data_and_hash_pages(tmp_path):
+    package = tmp_path / "integrity-enabled.xvc"
+    _make_xvc(
+        package,
+        integrity_enabled=True,
+        embedded_length=0x1000,
+        user_data_length=0x1000,
+        mutable_data_pages=2,
+    )
+
+    report = inspect_xvd_file(package)
+
+    assert report["layout"]["embedded_xvd_offset"] == 0x3000
+    assert report["layout"]["mutable_data_offset"] == 0x4000
+    assert report["layout"]["hash_tree_offset"] == 0x6000
+    assert report["layout"]["hash_tree_pages_calculated"] == 1
+    assert report["layout"]["user_data_offset"] == 0x7000
+    assert report["layout"]["xvc_info_offset"] == 0x8000
+    assert report["xvc_manifest"]["parse_status"] == "metadata_parsed"
 
 def test_non_xvc_xvd_header_does_not_parse_xvc_manifest(tmp_path):
     package = tmp_path / "sample.xvd"
