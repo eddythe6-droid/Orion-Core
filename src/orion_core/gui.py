@@ -531,7 +531,12 @@ class OrionDashboard:
             elif record.get("stfs_metadata") is not None:
                 evidence, tags = "XContent: метаданные", ("candidate",)
             elif record.get("xvd_metadata") is not None:
-                evidence, tags = "XVC: манифест" if (record.get("xvd_metadata") or {}).get("container_format") == "XVC" else "XVD: заголовок", ("candidate",)
+                xvd_info = record.get("xvd_metadata") or {}
+                if xvd_info.get("valid_header"):
+                    evidence = "XVC: манифест" if xvd_info.get("container_format") == "XVC" else "XVD: заголовок"
+                    tags = ("candidate",)
+                else:
+                    evidence, tags = "XVD/XVC: ошибка", ("warning",)
             elif record.get("shader_analysis") is not None:
                 evidence, tags = "Shader: метаданные", ("shader",)
             elif record.get("archive_member"):
@@ -568,7 +573,10 @@ class OrionDashboard:
                 continue
             row_id = f"media_{index}"
             pe = record.get("pe_analysis")
+            xvd_info = record.get("xvd_metadata")
             tag = ("candidate" if pe.get("valid_pe_structure") else "warning") if isinstance(pe, dict) else (
+                "candidate" if isinstance(xvd_info, dict) and xvd_info.get("valid_header") else
+                "warning" if isinstance(xvd_info, dict) else
                 "shader" if record.get("shader_analysis") is not None else ""
             )
             self.inventory_tree.insert(
