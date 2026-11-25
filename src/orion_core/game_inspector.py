@@ -22,6 +22,7 @@ from .import_resolver import build_local_export_index, resolve_imports_against_l
 from .api_catalog import assess_imported_symbols
 from .graphics_dependencies import assess_graphics_dependencies
 from .shader_inspector import inspect_shader_file, ShaderFormatError
+from .xvd_inspector import inspect_xvd_file, XVDFormatError, XVC_CONTENT_TYPES
 
 INSPECTOR_SCHEMA_VERSION = 1
 MAX_FILES = 100_000
@@ -44,6 +45,8 @@ _SIGNATURES = (
 
 _EXTENSION_HINTS = {
     ".xex": "xbox_360_executable_extension",
+    ".xvc": "xbox_xvc_extension",
+    ".xvd": "xbox_xvd_extension",
     ".xbe": "original_xbox_executable_extension",
     ".pak": "game_archive_extension",
     ".rpf": "game_archive_extension",
@@ -74,6 +77,9 @@ class GameInspectionError(ValueError):
 
 
 def _classify(path: Path, header: bytes) -> str:
+    if len(header) >= 0x288 and header[0x200:0x208] == b"msft-xvd":
+        content_type = int.from_bytes(header[0x284:0x288], "little")
+        return "xbox_xvc" if content_type in XVC_CONTENT_TYPES else "xbox_xvd"
     for signature, label in _SIGNATURES:
         if header.startswith(signature):
             if label == "riff":
@@ -119,13 +125,14 @@ def inspect_game_path(
         try:
             stat = file_path.stat()
             with file_path.open("rb") as stream:
-                header = stream.read(16)
+                header = stream.read(0x288)
             kind = _classify(file_path, header)
             pe_analysis = None
             scarlett_analysis = None
             dependency_analysis = None
             stfs_metadata = None
             xex_metadata = None
+            xvd_metadata = None
             if kind == "xex2":
                 try:
                     xex_metadata = inspect_xex(file_path)
@@ -136,6 +143,17 @@ def inspect_game_path(
                     stfs_metadata = inspect_stfs(file_path)
                 except STFSError as exc:
                     stfs_metadata = {"valid_header": False, "error": str(exc)}
+            if kind in {"xbox_xvc", "xbox_xvd", "xbox_xvc_extension", "xbox_xvd_extension"}:
+                try:
+                    xvd_metadata = inspect_xvd_file(file_path)
+                except XVDFormatError as exc:
+                    xvd_metadata = {
+                        "valid_header": False,
+                        "error": str(exc),
+                        "metadata_only": True,
+                        "signature_verified": False,
+                        "payload_decrypted": False,
+                    }
             shader_analysis = None
             shader_suffix = file_path.suffix.lower() in {".cso", ".dxil", ".dxbc", ".spv"}
             shader_magic = header[:4] in {b"\x03\x02#\x07", b"\x07#\x02\x03"}
@@ -183,6 +201,7 @@ def inspect_game_path(
                 "dependency_analysis": dependency_analysis,
                 "stfs_metadata": stfs_metadata,
                 "xex_metadata": xex_metadata,
+                "xvd_metadata": xvd_metadata,
                 "shader_analysis": shader_analysis,
             })
             counts[kind] = counts.get(kind, 0) + 1
@@ -393,6 +412,29 @@ def inspect_game_path(
             "authenticode_table_parse_status": authenticode.get("parse_status", "not_available"),
             "authenticode_signature_verified": False,
         })
+    xvd_records = [item for item in records if isinstance(item.get("xvd_metadata"), dict)]
+    xvc_records = [
+        item for item in xvd_records
+        if (item.get("xvd_metadata") or {}).get("container_format") == "XVC"
+    ]
+    xvc_manifest_statuses: dict[str, int] = {}
+    xvc_region_count = 0
+    for item in xvc_records:
+        manifest = (item.get("xvd_metadata") or {}).get("xvc_manifest") or {}
+        status = str(manifest.get("parse_status", "not_available"))
+        xvc_manifest_statuses[status] = xvc_manifest_statuses.get(status, 0) + 1
+        xvc_region_count += len(manifest.get("regions", []))
+    xvd_summary = {
+        "files_with_xvd_metadata": len(xvd_records),
+        "xvc_packages": len(xvc_records),
+        "xvc_regions_parsed": xvc_region_count,
+        "xvc_manifest_statuses": dict(sorted(xvc_manifest_statuses.items())),
+        "header_signatures_verified": False,
+        "hash_trees_verified": False,
+        "payload_decryption_performed": False,
+        "payload_extraction_performed": False,
+        "compatibility_established": False,
+    }
     xbox_series_summary = {
         "pe_files_with_scarlett_assessment": len(xbox_pe_records),
         "pe32_plus_x64_files": sum(
@@ -421,6 +463,11 @@ def inspect_game_path(
             else "xdvdfs" if xdvdfs_report
             else "iso9660" if iso_report
             else "xcontent_package" if stfs_report
+            else "xvc_package" if any(
+                (item.get("xvd_metadata") or {}).get("container_format") == "XVC"
+                for item in records
+            )
+            else "xvd_package" if any(item.get("xvd_metadata") for item in records)
             else "zip_archive" if is_archive
             else "file"
         ),
@@ -428,6 +475,7 @@ def inspect_game_path(
         "type_counts": dict(sorted(counts.items())),
         "shader_summary": shader_summary,
         "xbox_series_summary": xbox_series_summary,
+        "xvd_summary": xvd_summary,
         "files": records,
         "iso9660": iso_report,
         "xdvdfs": xdvdfs_report,
