@@ -418,9 +418,17 @@ def inspect_xvd_file(path: str | Path) -> dict[str, Any]:
                     "maximum_inspected_length": MAX_MANIFEST_BYTES,
                 }
             else:
-                metadata["xvc_manifest"] = _parse_xvc_manifest(
-                    stream, file_size, xvc_info_offset, xvc_data_length
-                )
+                try:
+                    metadata["xvc_manifest"] = _parse_xvc_manifest(
+                        stream, file_size, xvc_info_offset, xvc_data_length
+                    )
+                except XVDFormatError as exc:
+                    metadata["xvc_manifest"] = {
+                        "parse_status": "malformed_or_truncated_manifest",
+                        "error": str(exc),
+                        "declared_length": xvc_data_length,
+                        "cryptographic_checks_performed": False,
+                    }
         else:
             metadata["xvc_manifest"] = None
 
