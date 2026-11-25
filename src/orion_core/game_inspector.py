@@ -412,7 +412,11 @@ def inspect_game_path(
             "authenticode_table_parse_status": authenticode.get("parse_status", "not_available"),
             "authenticode_signature_verified": False,
         })
-    xvd_records = [item for item in records if isinstance(item.get("xvd_metadata"), dict)]
+    xvd_records = [
+        item for item in records
+        if isinstance(item.get("xvd_metadata"), dict)
+        and (item.get("xvd_metadata") or {}).get("valid_header")
+    ]
     xvc_records = [
         item for item in xvd_records
         if (item.get("xvd_metadata") or {}).get("container_format") == "XVC"
