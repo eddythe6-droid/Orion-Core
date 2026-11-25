@@ -101,7 +101,7 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [x] Inventory bounded WIN_CERTIFICATE framing without claiming Authenticode cryptographic validation
 - [x] Report Xbox Series normal-import and delay-load GDK dependency evidence separately
 - [x] Add opt-in streaming SHA-256 for PE/XEX2/XContent files larger than 64 MiB
-- [ ] Add XVC package manifest/container inventory using independently documented metadata only
+- [x] Add bounded XVD header and XVC manifest metadata inventory using public field mappings; no payload decryption or extraction
 - [x] Research and parse public XContent/STFS metadata headers (`CON `, `LIVE`, `PIRS`) without signature/hash verification
 - [x] Identify common GOD/SVOD sibling header + `.data/DataNNNN` layout by metadata only
 - [x] Parse documented public XEX2 wrapper metadata (fixed header, optional-header directory, entry point/base and execution info)
@@ -127,3 +127,15 @@ Project focus: evidence-backed research into Xbox-to-Windows PC platform portabi
 - [ ] Validate parsers against legally obtained, unprotected sample images and record format coverage.
 
 Current parser scope and limitations: see `GAME_INSPECTOR.md`, `XDVDFS.md`, `XEX2.md`, and `SCARLETT_PE.md`.
+
+
+## Xbox XVD / XVC research progress (2026-11-25)
+
+- [x] Recognize the fixed `msft-xvd` header at offset 0x200 and distinguish recognized XVC content types from other XVD content types.
+- [x] Parse volume flags, identifiers, package version fields, data lengths and bounded extension-entry metadata.
+- [x] Calculate a conservative metadata-layout estimate and locate the XVC manifest for recognized content types.
+- [x] Parse bounded XVC region headers, update-segment records and version-2 region specifiers.
+- [x] Add synthetic tests for valid headers/manifests, malformed table bounds, truncation, direct-file inspection and directory inventory.
+- [ ] Validate against lawful, unprotected XVC samples and independently compare field values.
+
+Scope: header signature verification, hash-tree verification, filesystem access, region decryption, key retrieval, package extraction and execution are intentionally not implemented. See `XVD_XVC.md`.
