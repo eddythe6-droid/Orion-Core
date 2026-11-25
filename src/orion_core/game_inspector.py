@@ -467,7 +467,10 @@ def inspect_game_path(
                 (item.get("xvd_metadata") or {}).get("container_format") == "XVC"
                 for item in records
             )
-            else "xvd_package" if any(item.get("xvd_metadata") for item in records)
+            else "xvd_package" if any(
+                (item.get("xvd_metadata") or {}).get("valid_header")
+                for item in records
+            )
             else "zip_archive" if is_archive
             else "file"
         ),
