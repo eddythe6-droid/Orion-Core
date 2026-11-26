@@ -14,7 +14,8 @@ For a file with the `msft-xvd` header magic at offset `0x200`, the parser reads 
 
 For recognized XVC content types, the parser uses the header's page counts and integrity flags to locate the XVC metadata block. It then parses bounded public manifest fields:
 
-- content ID, package description and referenced key GUIDs (identifiers only);
+- content ID, package description and encryption-key GUID slots (including empty slots, preserving slot indexes); region key references are resolved to GUIDs only when the referenced slot is populated;
+- region reserved/padding fields and unknown flag bits are preserved as raw metadata rather than silently discarded;
 - region records: region ID, description, flags, key reference, first update-segment index, file offset and length;
 - update-segment page numbers and stored metadata hash values;
 - version-2 region key/value specifiers.
