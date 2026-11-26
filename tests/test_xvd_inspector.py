@@ -148,6 +148,30 @@ def test_manifest_locator_accounts_for_embedded_xvd_mutable_data_and_hash_pages(
     assert report["layout"]["xvc_info_offset"] == 0x8000
     assert report["xvc_manifest"]["parse_status"] == "metadata_parsed"
 
+def test_xvc_manifest_reports_region_consistency_observations(tmp_path):
+    package = tmp_path / "overlapping-regions.xvc"
+    _make_xvc(package, region_count=2)
+
+    image = bytearray(package.read_bytes())
+    second_region = HEADER_SIZE + XVC_INFO_FIXED_SIZE + 0x80
+    # Keep the same region ID, overlap the first range, and reference a
+    # key slot beyond the single declared key ID.
+    struct.pack_into("<H", image, second_region + 0x04, 5)
+    struct.pack_into("<Q", image, second_region + 0x50, 0x4010)
+    package.write_bytes(image)
+
+    report = inspect_xvd_file(package)
+    diagnostics = report["xvc_manifest"]["region_diagnostics"]
+
+    assert diagnostics["duplicate_region_id_count"] == 1
+    assert diagnostics["key_reference_out_of_range_count"] == 1
+    assert diagnostics["regions_overlapping_another_region_count"] == 1
+    assert diagnostics["region_file_range_out_of_bounds_count"] == 0
+    assert diagnostics["initial_play_region_declared"] is True
+    assert diagnostics["preview_region_declared"] is False
+    assert "not independently proven corruption" in diagnostics["interpretation"]
+
+
 def test_non_xvc_xvd_header_does_not_parse_xvc_manifest(tmp_path):
     package = tmp_path / "sample.xvd"
     _make_xvc(package, content_type=0, version=0, region_count=0)
