@@ -255,6 +255,60 @@ def _parse_xvc_manifest(
             })
         cursor += required
 
+    declared_region_ids = [item["region_id"] for item in regions]
+    declared_region_id_set = set(declared_region_ids)
+    duplicate_region_id_count = len(declared_region_ids) - len(declared_region_id_set)
+    valid_ranges = sorted(
+        (
+            item["file_offset"],
+            item["file_offset"] + item["length_bytes"],
+            item["index"],
+        )
+        for item in regions
+        if item["length_bytes"] > 0 and item["file_range_in_bounds"]
+    )
+    overlapping_region_count = 0
+    furthest_region_end = -1
+    for start, end, _index in valid_ranges:
+        if start < furthest_region_end:
+            overlapping_region_count += 1
+        furthest_region_end = max(furthest_region_end, end)
+
+    region_diagnostics = {
+        "duplicate_region_id_count": duplicate_region_id_count,
+        "unknown_region_id_count": sum(
+            1 for region_id in declared_region_ids if region_id not in REGION_IDS
+        ),
+        "key_reference_out_of_range_count": sum(
+            1 for item in regions
+            if item["key_id"] != 0xFFFF and item["key_id"] >= key_count
+        ),
+        "first_segment_index_out_of_range_count": sum(
+            1 for item in regions
+            if update_count > 0 and item["first_segment_index"] >= update_count
+        ),
+        "region_file_range_out_of_bounds_count": sum(
+            1 for item in regions if not item["file_range_in_bounds"]
+        ),
+        "regions_overlapping_another_region_count": overlapping_region_count,
+        "specifier_without_matching_region_count": sum(
+            1 for item in specifiers
+            if item["region_id"] not in declared_region_id_set
+        ),
+        "initial_play_region_declared": (
+            _u32(fixed, 0xD24) in declared_region_id_set
+            if _u32(fixed, 0xD24) != 0 else None
+        ),
+        "preview_region_declared": (
+            _u32(fixed, 0xD38) in declared_region_id_set
+            if _u32(fixed, 0xD38) != 0 else None
+        ),
+        "interpretation": (
+            "structural observations only; overlaps and unknown identifiers "
+            "are not independently proven corruption"
+        ),
+    }
+
     return {
         "parse_status": "metadata_parsed",
         "version": version,
@@ -268,6 +322,7 @@ def _parse_xvc_manifest(
         "update_segments": segments,
         "region_specifier_count": specifier_count if version >= 2 else 0,
         "region_specifiers": specifiers,
+        "region_diagnostics": region_diagnostics,
         "initial_play_region_id": _u32(fixed, 0xD24),
         "initial_play_offset": _u64(fixed, 0xD28),
         "preview_region_id": _u32(fixed, 0xD38),
