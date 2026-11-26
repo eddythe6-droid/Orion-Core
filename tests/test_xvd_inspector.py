@@ -148,6 +148,19 @@ def test_manifest_locator_accounts_for_embedded_xvd_mutable_data_and_hash_pages(
     assert report["layout"]["xvc_info_offset"] == 0x8000
     assert report["xvc_manifest"]["parse_status"] == "metadata_parsed"
 
+
+def test_xvc_manifest_reports_uninterpreted_trailing_bytes(tmp_path):
+    package = tmp_path / "manifest-with-tail.xvc"
+    declared_length = XVC_INFO_FIXED_SIZE + 0x80 + 0x0C + 0x188 + 16
+    _make_xvc(package, manifest_length_override=declared_length)
+
+    report = inspect_xvd_file(package)
+    manifest = report["xvc_manifest"]
+
+    assert manifest["parse_status"] == "metadata_parsed"
+    assert manifest["manifest_bytes_uninterpreted"] == 16
+
+
 def test_xvc_manifest_reports_region_consistency_observations(tmp_path):
     package = tmp_path / "overlapping-regions.xvc"
     _make_xvc(package, region_count=2)
