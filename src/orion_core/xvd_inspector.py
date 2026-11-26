@@ -304,6 +304,12 @@ def _parse_xvc_manifest(
             1 for item in regions
             if item["key_id"] != 0xFFFF and item["key_id"] >= key_count
         ),
+        "key_reference_to_empty_slot_count": sum(
+            1 for item in regions
+            if item["key_id"] != 0xFFFF
+            and item["key_id"] < len(key_slots)
+            and not key_slots[item["key_id"]]["populated"]
+        ),
         "first_segment_index_out_of_range_count": sum(
             1 for item in regions
             if update_count > 0 and item["first_segment_index"] >= update_count
