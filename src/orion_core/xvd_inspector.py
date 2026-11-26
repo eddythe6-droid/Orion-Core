@@ -173,11 +173,18 @@ def _parse_xvc_manifest(
         raise XVDFormatError("XVC region-specifier count exceeds the safety limit")
 
     key_ids = []
+    key_slots = []
     for index in range(key_count):
         key_offset = 0x10 + index * 16
         raw_key = fixed[key_offset:key_offset + 16]
-        if any(raw_key):
-            key_ids.append(_guid(fixed, key_offset))
+        key_guid = _guid(fixed, key_offset) if any(raw_key) else None
+        key_slots.append({
+            "slot_index": index,
+            "guid": key_guid,
+            "populated": key_guid is not None,
+        })
+        if key_guid is not None:
+            key_ids.append(key_guid)
 
     description = _text_utf16(fixed[0xC10:0xD10])
     content_id = _guid(fixed, 0)
@@ -209,7 +216,21 @@ def _parse_xvc_manifest(
                 "region_name": REGION_IDS.get(region_id, "unknown"),
                 "key_id": key_id,
                 "encrypted_by_key_reference": key_id != 0xFFFF,
+                "key_guid": (
+                    key_slots[key_id]["guid"]
+                    if key_id != 0xFFFF and key_id < len(key_slots) else None
+                ),
+                "key_slot_reference_resolved": (
+                    key_id == 0xFFFF or (
+                        key_id < len(key_slots) and key_slots[key_id]["populated"]
+                    )
+                ),
                 "flags": flags,
+                "unknown_flag_bits": flags & ~sum(REGION_FLAG_NAMES.keys()),
+                "padding_0x06": _u16(raw_regions, base + 0x06),
+                "unknown_0x68": f"0x{_u64(raw_regions, base + 0x68):016X}",
+                "unknown_0x70": f"0x{_u64(raw_regions, base + 0x70):016X}",
+                "unknown_0x78": f"0x{_u64(raw_regions, base + 0x78):016X}",
                 "flag_names": [name for bit, name in REGION_FLAG_NAMES.items() if flags & bit],
                 "first_segment_index": first_segment,
                 "first_segment_index_in_bounds": (
@@ -316,6 +337,9 @@ def _parse_xvc_manifest(
         "description": description,
         "key_count_declared": key_count,
         "key_id_guids": key_ids,
+        "key_slots": key_slots,
+        "key_slots_populated": len(key_ids),
+        "key_slots_empty": sum(1 for item in key_slots if not item["populated"]),
         "region_count": region_count if version >= 1 else 0,
         "regions": regions,
         "update_segment_count": update_count if version >= 1 else 0,
