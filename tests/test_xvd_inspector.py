@@ -161,6 +161,42 @@ def test_xvc_manifest_reports_uninterpreted_trailing_bytes(tmp_path):
     assert manifest["manifest_bytes_uninterpreted"] == 16
 
 
+
+def test_xvc_key_slots_preserve_empty_indexes_and_resolve_region_guid(tmp_path):
+    package = tmp_path / "key-slots.xvc"
+    _make_xvc(package)
+
+    image = bytearray(package.read_bytes())
+    manifest_offset = HEADER_SIZE
+    # Slot 0 is intentionally empty; slot 1 contains the fixture GUID.
+    image[manifest_offset + 0x10:manifest_offset + 0x20] = bytes(16)
+    _write_guid(image, manifest_offset + 0x20, "bbbbbbbb-cccc-dddd-eeee-ffffffffffff")
+    struct.pack_into("<H", image, manifest_offset + 0xD1E, 2)
+    region_offset = manifest_offset + XVC_INFO_FIXED_SIZE
+    struct.pack_into("<H", image, region_offset + 0x04, 1)
+    struct.pack_into("<H", image, region_offset + 0x06, 0x1234)
+    struct.pack_into("<I", image, region_offset + 0x08, 0x91)
+    struct.pack_into("<Q", image, region_offset + 0x68, 0x1111222233334444)
+    package.write_bytes(image)
+
+    report = inspect_xvd_file(package)
+    manifest = report["xvc_manifest"]
+    region = manifest["regions"][0]
+
+    assert manifest["key_count_declared"] == 2
+    assert manifest["key_slots"][0]["guid"] is None
+    assert manifest["key_slots"][0]["populated"] is False
+    assert manifest["key_slots"][1]["guid"] == "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+    assert manifest["key_slots_populated"] == 1
+    assert manifest["key_slots_empty"] == 1
+    assert region["key_id"] == 1
+    assert region["key_guid"] == "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+    assert region["key_slot_reference_resolved"] is True
+    assert region["padding_0x06"] == 0x1234
+    assert region["unknown_flag_bits"] == 0x80
+    assert region["unknown_0x68"] == "0x1111222233334444"
+
+
 def test_xvc_manifest_reports_region_consistency_observations(tmp_path):
     package = tmp_path / "overlapping-regions.xvc"
     _make_xvc(package, region_count=2)
