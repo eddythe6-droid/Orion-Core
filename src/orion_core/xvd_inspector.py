@@ -329,6 +329,9 @@ def _parse_xvc_manifest(
         "preview_offset": _u64(fixed, 0xD40),
         "manifest_bytes_consumed": cursor,
         "manifest_bytes_declared": manifest_length,
+        # Remaining bytes may be alignment padding or a newer/unknown table;
+        # report them without interpreting them as malformed data.
+        "manifest_bytes_uninterpreted": manifest_length - cursor,
         "payload_extracted": False,
         "cryptographic_checks_performed": False,
     }
