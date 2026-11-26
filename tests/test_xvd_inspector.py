@@ -168,7 +168,7 @@ def test_xvc_manifest_reports_region_consistency_observations(tmp_path):
     assert diagnostics["regions_overlapping_another_region_count"] == 1
     assert diagnostics["region_file_range_out_of_bounds_count"] == 0
     assert diagnostics["initial_play_region_declared"] is True
-    assert diagnostics["preview_region_declared"] is False
+    assert diagnostics["preview_region_declared"] is None
     assert "not independently proven corruption" in diagnostics["interpretation"]
 
 
