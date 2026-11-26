@@ -21,6 +21,8 @@ For recognized XVC content types, the parser uses the header's page counts and i
 
 The manifest parser validates declared counts against fixed limits and each table against the declared manifest length before reading it. A malformed manifest does not erase an otherwise readable XVD header report.
 
+After parsing, Orion-Core also reports conservative cross-reference observations: duplicate or unknown region IDs, key-slot references outside the declared key count, first-segment indexes outside the segment table, region ranges outside the file, observed region-range overlaps, specifiers without a matching region, and whether the initial-play/preview region IDs match a declared region. These are diagnostics, not automatic corruption verdicts: overlapping regions or unfamiliar IDs may be legitimate in variants not represented by the public mapping.
+
 ## Explicit limits
 
 The parser does not read or reconstruct the filesystem, extract embedded XVDs, mount containers, read region payloads, decrypt data, retrieve or derive keys, bypass licensing/DRM, verify signatures, recompute hashes, or execute files. A non-zero signature area is not proof of authenticity. Header flags are reported as metadata, not independently verified properties.
