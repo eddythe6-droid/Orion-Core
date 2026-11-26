@@ -197,6 +197,26 @@ def test_xvc_key_slots_preserve_empty_indexes_and_resolve_region_guid(tmp_path):
     assert region["unknown_0x68"] == "0x1111222233334444"
 
 
+
+def test_xvc_region_reference_to_empty_key_slot_is_reported(tmp_path):
+    package = tmp_path / "empty-key-slot.xvc"
+    _make_xvc(package)
+
+    image = bytearray(package.read_bytes())
+    manifest_offset = HEADER_SIZE
+    image[manifest_offset + 0x10:manifest_offset + 0x20] = bytes(16)
+    region_offset = manifest_offset + XVC_INFO_FIXED_SIZE
+    struct.pack_into("<H", image, region_offset + 0x04, 0)
+    package.write_bytes(image)
+
+    report = inspect_xvd_file(package)
+    manifest = report["xvc_manifest"]
+
+    assert manifest["regions"][0]["key_guid"] is None
+    assert manifest["regions"][0]["key_slot_reference_resolved"] is False
+    assert manifest["region_diagnostics"]["key_reference_to_empty_slot_count"] == 1
+
+
 def test_xvc_manifest_reports_region_consistency_observations(tmp_path):
     package = tmp_path / "overlapping-regions.xvc"
     _make_xvc(package, region_count=2)
